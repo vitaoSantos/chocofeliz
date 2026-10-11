@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ChocoFeliz · Pirulitos de chocolate personalizados</title>
+    <meta
+      name="description"
+      content="ChocoFeliz: pirulitos de chocolate com rótulo comestível personalizado — tema da festa, nome e idade. Lembrancinhas para aniversários, batizados, chás e eventos."
+    />
+    <meta name="theme-color" content="#140b07" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:title" content="ChocoFeliz · Pirulitos de chocolate personalizados" />
+    <meta
+      property="og:description"
+      content="Desembrulhe a felicidade: pirulitos de chocolate com o tema, o nome e a idade de quem é celebrado."
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- Formulário estático para o Netlify Forms detectar no deploy (o formulário de verdade é o React, em Contato) -->
+    <form name="pedido" data-netlify="true" netlify-honeypot="bot-field" hidden>
+      <input type="text" name="nome" />
+      <input type="tel" name="whatsapp" />
+      <input type="email" name="email" />
+      <input type="text" name="data" />
+      <input type="text" name="quantidade" />
+      <input type="text" name="pirulito" />
+      <textarea name="mensagem"></textarea>
+      <input name="bot-field" />
+    </form>
+
+    <noscript>Ative o JavaScript para ver o mostruário da ChocoFeliz.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

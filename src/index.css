@@ -1,0 +1,177 @@
+@import "tailwindcss";
+@import "@fontsource-variable/fraunces/full.css";
+@import "@fontsource-variable/fraunces/full-italic.css";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/baloo-2";
+@import "@fontsource-variable/caveat";
+@import "lenis/dist/lenis.css";
+
+@theme {
+  /* Fundo: cacau bem escuro */
+  --color-cocoa: #140b07;
+  --color-cocoa-2: #1c100a;
+  --color-cocoa-3: #29170e;
+  /* Chocolates */
+  --color-milk: #5c3320;
+  --color-milk-soft: #7a4529;
+  --color-dark: #3a1e12;
+  /* Texto */
+  --color-cream: #f7ead8;
+  --color-muted: #c4aa94;
+  --color-faint: #8c715e;
+  --color-line: rgb(247 234 216 / 0.1);
+  --color-line-strong: rgb(247 234 216 / 0.2);
+  /* Acentos "felizes" */
+  --color-caramel: #eaa24c;
+  --color-caramel-soft: #f6c47c;
+  --color-berry: #ff5c8a;
+  --color-berry-soft: #ff8fb0;
+  --color-mint: #7bd8b5;
+  --color-ok: #7bd8b5;
+
+  --font-display: "Fraunces Variable", ui-serif, Georgia, serif;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-hand: "Caveat Variable", "Comic Sans MS", cursive;
+  --font-round: "Baloo 2 Variable", ui-rounded, system-ui, sans-serif;
+
+  --ease-expo: cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+@utility container-x {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 80rem;
+  padding-inline: 1.25rem;
+  @media (width >= 40rem) {
+    padding-inline: 2rem;
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: var(--color-cocoa);
+    overflow-x: clip;
+  }
+
+  body {
+    background: var(--color-cocoa);
+    color: var(--color-cream);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+  }
+
+  ::selection {
+    background: rgb(255 92 138 / 0.45);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-caramel);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  /* Seções âncora não ficam escondidas atrás do menu fixo */
+  section[id] {
+    scroll-margin-top: 5rem;
+  }
+}
+
+@layer components {
+  /* Fraunces com os eixos "macios" e "tortinhos": dá o ar artesanal dos títulos */
+  .font-display {
+    font-variation-settings: "SOFT" 100, "WONK" 0;
+  }
+  .wonk {
+    font-style: italic;
+    font-variation-settings: "SOFT" 100, "WONK" 1;
+  }
+
+  .text-gradient {
+    background: linear-gradient(100deg, var(--color-caramel-soft) 0%, var(--color-berry) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .bg-gradient-brand {
+    background: linear-gradient(100deg, var(--color-caramel) 0%, var(--color-berry) 100%);
+  }
+
+  /* Superfície de chocolate ao leite, com brilho de chocolate temperado */
+  .bg-chocolate {
+    background:
+      radial-gradient(120% 80% at 20% 0%, rgb(255 255 255 / 0.12), transparent 45%),
+      linear-gradient(180deg, #7a4529 0%, #5c3320 45%, #432314 100%),
+      #4a2616;
+  }
+
+  .glass {
+    background: rgb(28 16 10 / 0.6);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+
+  /* No celular o desfoque de fundo custa caro: troca por um fundo quase opaco */
+  @media (max-width: 1023px), (pointer: coarse) {
+    .glass {
+      background: rgb(28 16 10 / 0.94);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+
+  /* Borda em gradiente para cards */
+  .border-gradient {
+    position: relative;
+  }
+  .border-gradient::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(140deg, rgb(234 162 76 / 0.55), rgb(255 255 255 / 0.05) 40%, rgb(255 92 138 / 0.5));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .grain {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    pointer-events: none;
+    opacity: 0.06;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .marquee-track {
+    animation: marquee var(--marquee-duration, 40s) linear infinite;
+  }
+  .marquee-track[data-reverse="true"] {
+    animation-direction: reverse;
+  }
+
+  /* Onda de chocolate do loader */
+  .wave-track {
+    animation: marquee var(--wave-duration, 3s) linear infinite;
+  }
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track,
+  .wave-track { animation: none; }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+  }
+}
