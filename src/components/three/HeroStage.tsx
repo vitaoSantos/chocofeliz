@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import type { MotionValue } from 'motion/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { chocolates, ribbons } from '../../data/options'
+import { chocolates, DEFAULT_RIBBON } from '../../data/options'
 import { BRAND_LABEL, type LabelInput } from '../../lib/labelArt'
 import { builtState, Lollipop, type LollipopState } from './Lollipop'
 import { Glow, Sprinkles, Studio } from './Studio'
@@ -20,6 +20,7 @@ export const heroLabels: LabelInput[] = [
   { theme: 'dinossauros', name: 'Bento', detail: '3 anos' },
 ]
 const SPINS = heroLabels.length - 1
+const HERO_RIBBON = [DEFAULT_RIBBON]
 
 // Marcos do scroll da abertura (0 a 1 ao longo da seção)
 export const STORY = {
@@ -142,7 +143,7 @@ function Director({ progress, play, reduced, mobile, onReady }: DirectorProps) {
         <Lollipop
           state={state}
           chocolate={chocolates[0]}
-          ribbonColor={ribbons[0].color}
+          ribbonColors={HERO_RIBBON}
           labelMaterial={labelMaterial}
           labelMap={textures[0]}
           detail={mobile ? 0.6 : 1}

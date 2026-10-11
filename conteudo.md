@@ -4,7 +4,7 @@ Itens marcados com **[?]** precisam de resposta. Depois é só preencher nos arq
 
 ## Contato (`src/data/brand.ts`)
 
-- **WhatsApp:** [?] número com DDI e DDD, só dígitos (ex.: `5535999998888`)
+- **WhatsApp:** ✅ 35 98864-8782 (`5535988648782`), já em todos os botões
 - **Instagram:** [?] usuário, sem @
 - **E-mail:** [?] (opcional)
 - **Cidade / região atendida:** [?] (opcional, aparece no contato)
@@ -14,13 +14,14 @@ Itens marcados com **[?]** precisam de resposta. Depois é só preencher nos arq
 - "Rótulo **comestível**" (papel arroz / papel de açúcar impresso) [?]
 - "A gente cria a arte e você aprova antes de produzir" [?]
 - "Moldado à mão, um por um" [?]
-- Opções de chocolate: ao leite, meio amargo, branco, branco rosa [?] (tirar as que não fazem em `src/data/options.ts`)
-- Cores de fitilho: vermelho, rosa, dourado, verde, azul, lilás [?]
+- Opções de chocolate: ao leite, meio amargo, branco, branco rosa — ✅ agora é só ligar/desligar no painel (`/admin` → Opções do site)
+- Cores de fitilho: 17 cores prontas + seletor para qualquer outra, com opção de duas cores [?] (conferir se as prontas são as que vocês têm)
 - Ocasiões da faixa: aniversários, batizados, chá revelação, chá de bebê, Páscoa, Dia das Crianças, formaturas, casamentos, eventos corporativos, Natal [?]
 
-## Mostruário (`src/data/gallery.ts`)
+## Mural de festas (painel `/admin` → Mural de fotos)
 
-- As duas fotos atuais mostram nomes de crianças nos rótulos ("Théo", "Henrique"). [?] Confirmar com as famílias que podem aparecer no site, ou trocar por fotos sem nome.
+- Para usar o painel, falta criar a variável `ADMIN_PASSWORD` no Netlify (ver README). [?]
+- As fotos mostram nomes de crianças nos rótulos (as duas que vêm com o site: "Théo", "Henrique"). [?] Confirmar com as famílias antes de publicar, ou usar fotos sem nome.
 - Mais fotos: quanto mais variedade de temas, melhor. [?]
 
 ## Pode entrar depois

@@ -43,32 +43,34 @@ export function useLabelTextures(inputs: LabelInput[], size: number) {
 }
 
 // Uma textura só, redesenhada quando o rótulo muda (configurador).
-// Digitando, espera a pessoa dar uma pausa antes de redesenhar; trocando o tema, redesenha na hora.
-export function useLiveLabelTexture({ theme, name, detail }: LabelInput, size: number, typingDelay = 160) {
+// Digitando, espera a pessoa dar uma pausa antes de redesenhar; trocando o tema ou a imagem, redesenha na hora.
+export function useLiveLabelTexture({ theme, name, detail }: LabelInput, size: number, image: ImageBitmap | null = null, typingDelay = 160) {
   const texture = useMemo(() => blankTexture(size), [size])
   const [ready, setReady] = useState(false)
   const lastTheme = useRef<string | null>(null)
+  const lastImage = useRef<ImageBitmap | null>(null)
 
   useEffect(() => {
     let cancelled = false
     let timer = 0
     const draw = () => {
       if (cancelled) return
-      drawLabel(texture.image as HTMLCanvasElement, { theme, name, detail })
+      drawLabel(texture.image as HTMLCanvasElement, { theme, name, detail }, image)
       texture.needsUpdate = true
       lastTheme.current = theme
+      lastImage.current = image
       setReady(true)
     }
     labelFontsReady().then(() => {
       if (cancelled) return
-      if (lastTheme.current === null || lastTheme.current !== theme) draw()
+      if (lastTheme.current === null || lastTheme.current !== theme || lastImage.current !== image) draw()
       else timer = window.setTimeout(draw, typingDelay)
     })
     return () => {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [texture, theme, name, detail, typingDelay])
+  }, [texture, theme, name, detail, image, typingDelay])
 
   useEffect(() => () => texture.dispose(), [texture])
 

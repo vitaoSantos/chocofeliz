@@ -2,7 +2,7 @@ import { PresentationControls } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { chocolates, ribbons } from '../../data/options'
+import { chocolates } from '../../data/options'
 import type { LabelInput } from '../../lib/labelArt'
 import { builtState, Lollipop, type LollipopState } from './Lollipop'
 import { Glow, Sprinkles, Studio } from './Studio'
@@ -12,7 +12,8 @@ import { Warmup } from './Warmup'
 type Props = {
   label: LabelInput
   chocolate: string
-  ribbon: string
+  ribbons: string[]
+  art: ImageBitmap | null
   wrapped: boolean
   active: boolean
   mobile: boolean
@@ -20,16 +21,15 @@ type Props = {
   onReady?: () => void
 }
 
-function Scene({ label, chocolate, ribbon, wrapped, mobile, reduced, onReady }: Omit<Props, 'active'>) {
+function Scene({ label, chocolate, ribbons, art, wrapped, mobile, reduced, onReady }: Omit<Props, 'active'>) {
   const state = useRef<LollipopState>(builtState())
   const labelMaterial = useRef<THREE.MeshStandardMaterial | null>(null)
-  const { texture, ready } = useLiveLabelTexture(label, mobile ? 512 : 768)
+  const { texture, ready } = useLiveLabelTexture(label, mobile ? 512 : 768, art)
   const warmTextures = useMemo(() => [texture], [texture])
   const spinner = useRef<THREE.Group>(null)
   const spinTarget = useRef(0)
   const spin = useRef(0)
   const choc = chocolates.find((c) => c.id === chocolate) ?? chocolates[0]
-  const ribbonColor = (ribbons.find((r) => r.id === ribbon) ?? ribbons[0]).color
 
   // Gira como moeda quando o tema muda: o rótulo novo "aparece" no giro
   useEffect(() => {
@@ -56,7 +56,7 @@ function Scene({ label, chocolate, ribbon, wrapped, mobile, reduced, onReady }: 
           <Lollipop
             state={state}
             chocolate={choc}
-            ribbonColor={ribbonColor}
+            ribbonColors={ribbons}
             labelMaterial={labelMaterial}
             labelMap={texture}
             detail={mobile ? 0.6 : 1}

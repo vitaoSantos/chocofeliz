@@ -52,7 +52,7 @@ export const builtState = (): LollipopState => ({
 type Props = {
   state: RefObject<LollipopState>
   chocolate: { color: string }
-  ribbonColor: string
+  ribbonColors: string[] // uma ou duas cores
   labelMaterial: RefObject<THREE.MeshStandardMaterial | null>
   labelMap: THREE.Texture
   detail?: number
@@ -172,7 +172,10 @@ const NOTES = [
   { part: 'stick', offset: [0.05, 0.55, 0], text: 'Palito firme, preso no chocolate' },
 ] as const
 
-export function Lollipop({ state, chocolate, ribbonColor, labelMaterial, labelMap, detail = 1, annotations = false, compactNotes = false }: Props) {
+// Qual das duas cores vai em cada pedaço do fitilho: faixa, 2 laçadas e 4 cachinhos
+const PIECE_COLOR = [0, 0, 1, 1, 0, 1, 0]
+
+export function Lollipop({ state, chocolate, ribbonColors, labelMaterial, labelMap, detail = 1, annotations = false, compactNotes = false }: Props) {
   const dpr = useThree((s) => s.viewport.dpr)
   const chocolateMesh = useRef<THREE.Mesh>(null)
   const label = useRef<THREE.Mesh>(null)
@@ -210,15 +213,18 @@ export function Lollipop({ state, chocolate, ribbonColor, labelMaterial, labelMa
     // a cor é atualizada no efeito abaixo, sem recriar o material
   }, [])
 
-  const ribbonMat = useMemo(
+  // Duas cópias do material do fitilho (com uma cor só, as duas ficam iguais)
+  const ribbonMats = useMemo(
     () =>
-      new THREE.MeshStandardMaterial({
-        color: ribbonColor,
-        roughness: 0.22,
-        metalness: 0.25,
-        side: THREE.DoubleSide,
-        transparent: true,
-      }),
+      [0, 1].map(
+        () =>
+          new THREE.MeshStandardMaterial({
+            roughness: 0.22,
+            metalness: 0.25,
+            side: THREE.DoubleSide,
+            transparent: true,
+          }),
+      ),
     [],
   )
 
@@ -226,9 +232,11 @@ export function Lollipop({ state, chocolate, ribbonColor, labelMaterial, labelMa
     chocolateMat.color.set(chocolate.color)
   }, [chocolate.color, chocolateMat])
 
+  const [firstColor, secondColor] = ribbonColors
   useEffect(() => {
-    ribbonMat.color.set(ribbonColor)
-  }, [ribbonColor, ribbonMat])
+    ribbonMats[0].color.set(firstColor)
+    ribbonMats[1].color.set(secondColor ?? firstColor)
+  }, [firstColor, secondColor, ribbonMats])
 
   useEffect(
     () => () => {
@@ -236,9 +244,9 @@ export function Lollipop({ state, chocolate, ribbonColor, labelMaterial, labelMa
       skirtMat.dispose()
       sparkMat.dispose()
       chocolateMat.dispose()
-      ribbonMat.dispose()
+      ribbonMats.forEach((m) => m.dispose())
     },
-    [wrapMat, skirtMat, sparkMat, chocolateMat, ribbonMat],
+    [wrapMat, skirtMat, sparkMat, chocolateMat, ribbonMats],
   )
 
   useFrame((frame) => {
@@ -296,7 +304,9 @@ export function Lollipop({ state, chocolate, ribbonColor, labelMaterial, labelMa
         child.rotation.set(piece.spin.x * off, piece.spin.y * off, piece.spin.z * off)
         child.scale.setScalar(1 + (i === 0 ? off * 0.8 : 0))
       })
-      ribbonMat.opacity = 1 - THREE.MathUtils.smoothstep(off, 0.55, 1)
+      const opacity = 1 - THREE.MathUtils.smoothstep(off, 0.55, 1)
+      ribbonMats[0].opacity = opacity
+      ribbonMats[1].opacity = opacity
     }
 
     // Faíscas (só desenhadas enquanto estão no ar)
@@ -359,7 +369,7 @@ export function Lollipop({ state, chocolate, ribbonColor, labelMaterial, labelMa
             <group>
               <mesh
                 geometry={piece.geometry}
-                material={ribbonMat}
+                material={ribbonMats[PIECE_COLOR[i] ?? 0]}
                 position={piece.pivot.clone().negate().toArray()}
                 renderOrder={1}
                 raycast={noRaycast}

@@ -1,4 +1,4 @@
-import { themeById } from '../data/themes'
+import { CUSTOM_ART, themeById } from '../data/themes'
 
 // Desenha o rótulo comestível (o disco impresso que vai no centro do pirulito) num canvas quadrado.
 // Tudo é vetor/emoji desenhado na hora: nome e idade mudam sem precisar de imagem nova.
@@ -124,6 +124,135 @@ function confetti(ctx: Ctx, s: number, count: number, colors: string[], seed: nu
     }
     ctx.restore()
   }
+}
+
+function star(ctx: Ctx, x: number, y: number, outer: number, inner: number, points: number, fill: string, rotate = -Math.PI / 2) {
+  ctx.beginPath()
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 ? inner : outer
+    const a = rotate + (i * Math.PI) / points
+    ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r)
+  }
+  ctx.closePath()
+  ctx.fillStyle = fill
+  ctx.fill()
+}
+
+function snowflake(ctx: Ctx, x: number, y: number, r: number, color: string) {
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.strokeStyle = color
+  ctx.lineWidth = Math.max(1, r * 0.14)
+  ctx.lineCap = 'round'
+  for (let i = 0; i < 6; i++) {
+    ctx.rotate(Math.PI / 3)
+    ctx.beginPath()
+    ctx.moveTo(0, 0)
+    ctx.lineTo(0, -r)
+    ctx.moveTo(0, -r * 0.55)
+    ctx.lineTo(-r * 0.25, -r * 0.8)
+    ctx.moveTo(0, -r * 0.55)
+    ctx.lineTo(r * 0.25, -r * 0.8)
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
+function dots(ctx: Ctx, s: number, step: number, r: number, color: string) {
+  ctx.fillStyle = color
+  for (let row = 0; row * step < s + step; row++) {
+    for (let x = (row % 2) * step * 0.5; x < s + step; x += step) {
+      ctx.beginPath()
+      ctx.arc(x, row * step, r, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+}
+
+function crown(ctx: Ctx, cx: number, cy: number, w: number, h: number) {
+  const left = cx - w / 2
+  const right = cx + w / 2
+  const top = cy - h / 2
+  const bottom = cy + h / 2
+  const g = ctx.createLinearGradient(left, top, right, bottom)
+  g.addColorStop(0, '#fff3bf')
+  g.addColorStop(0.45, '#f2c94c')
+  g.addColorStop(1, '#a8741a')
+  ctx.save()
+  ctx.beginPath()
+  ctx.moveTo(left, bottom)
+  ctx.lineTo(left, top + h * 0.35)
+  ctx.lineTo(left + w * 0.24, top + h * 0.62)
+  ctx.lineTo(cx, top)
+  ctx.lineTo(right - w * 0.24, top + h * 0.62)
+  ctx.lineTo(right, top + h * 0.35)
+  ctx.lineTo(right, bottom)
+  ctx.closePath()
+  ctx.shadowColor = 'rgba(0,0,0,0.35)'
+  ctx.shadowBlur = w * 0.05
+  ctx.shadowOffsetY = w * 0.02
+  ctx.fillStyle = g
+  ctx.fill()
+  ctx.restore()
+  ctx.fillStyle = '#b8860b'
+  ctx.fillRect(left, bottom - h * 0.2, w, h * 0.2)
+  disc(ctx, cx, bottom - h * 0.1, h * 0.075, '#e03131')
+  disc(ctx, left + w * 0.24, bottom - h * 0.1, h * 0.055, '#4dabf7')
+  disc(ctx, right - w * 0.24, bottom - h * 0.1, h * 0.055, '#4dabf7')
+  disc(ctx, left, top + h * 0.35, h * 0.065, '#fff3bf')
+  disc(ctx, cx, top, h * 0.075, '#fff3bf')
+  disc(ctx, right, top + h * 0.35, h * 0.065, '#fff3bf')
+}
+
+function leaf(ctx: Ctx, x: number, y: number, len: number, angle: number, color: string) {
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.rotate(angle)
+  ctx.beginPath()
+  ctx.moveTo(0, 0)
+  ctx.quadraticCurveTo(len * 0.5, -len * 0.26, len, 0)
+  ctx.quadraticCurveTo(len * 0.5, len * 0.26, 0, 0)
+  ctx.fillStyle = color
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)'
+  ctx.lineWidth = len * 0.02
+  ctx.beginPath()
+  ctx.moveTo(0, 0)
+  ctx.lineTo(len * 0.95, 0)
+  ctx.stroke()
+  ctx.restore()
+}
+
+// Monstrinho fofo de um olho só (desenhado, sem personagem de ninguém)
+function monster(ctx: Ctx, x: number, y: number, r: number) {
+  ctx.fillStyle = '#fff3bf'
+  for (const side of [-1, 1]) {
+    ctx.beginPath()
+    ctx.moveTo(x + side * r * 0.3, y - r * 0.85)
+    ctx.lineTo(x + side * r * 0.6, y - r * 1.25)
+    ctx.lineTo(x + side * r * 0.72, y - r * 0.62)
+    ctx.closePath()
+    ctx.fill()
+  }
+  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r)
+  g.addColorStop(0, '#8ce99a')
+  g.addColorStop(1, '#2f9e44')
+  ctx.beginPath()
+  ctx.ellipse(x, y, r, r * 0.95, 0, 0, Math.PI * 2)
+  ctx.fillStyle = g
+  ctx.fill()
+  disc(ctx, x, y - r * 0.15, r * 0.42, '#ffffff')
+  disc(ctx, x + r * 0.06, y - r * 0.1, r * 0.22, '#1c7ed6')
+  disc(ctx, x + r * 0.08, y - r * 0.1, r * 0.11, '#111111')
+  disc(ctx, x - r * 0.02, y - r * 0.2, r * 0.06, '#ffffff')
+  ctx.beginPath()
+  ctx.arc(x, y + r * 0.35, r * 0.3, 0.15 * Math.PI, 0.85 * Math.PI)
+  ctx.lineWidth = r * 0.08
+  ctx.strokeStyle = '#1b4332'
+  ctx.lineCap = 'round'
+  ctx.stroke()
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(x - r * 0.06, y + r * 0.6, r * 0.12, r * 0.12)
 }
 
 // ---------- Cenários de cada tema ----------
@@ -478,6 +607,235 @@ const scenes: Record<string, (ctx: Ctx, s: number) => void> = {
     emoji(ctx, '🐰', s * 0.5, s * 0.42, s * 0.26)
   },
 
+  natal(ctx, s) {
+    const g = ctx.createRadialGradient(s * 0.5, s * 0.4, s * 0.05, s * 0.5, s * 0.5, s * 0.72)
+    g.addColorStop(0, '#f03e3e')
+    g.addColorStop(1, '#7a0e0e')
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, s, s)
+    const rand = rng(41)
+    for (let i = 0; i < 70; i++) disc(ctx, rand() * s, rand() * s * 0.85, s * (0.003 + rand() * 0.007), 'rgba(255,255,255,0.8)')
+    hill(ctx, s, s * 0.64, s * 0.025, '#f8f9fa', 1.3)
+    hill(ctx, s, s * 0.73, s * 0.02, '#e9ecef', 3.4)
+    for (const [x, y, r] of [[0.16, 0.18, 0.03], [0.84, 0.22, 0.025], [0.5, 0.09, 0.02]] as const) star(ctx, s * x, s * y, s * r, s * r * 0.45, 5, '#ffd43b')
+    emoji(ctx, '🎄', s * 0.2, s * 0.47, s * 0.17)
+    emoji(ctx, '🎁', s * 0.81, s * 0.5, s * 0.11, 0.15)
+    emoji(ctx, '🎅', s * 0.52, s * 0.4, s * 0.27)
+  },
+
+  bailarina(ctx, s) {
+    vertical(ctx, s, ['#fff0f6', '#ffdeeb', '#fcc2d7'])
+    dots(ctx, s, s * 0.09, s * 0.012, 'rgba(255,255,255,0.6)')
+    const rand = rng(53)
+    for (let i = 0; i < 12; i++) sparkle(ctx, rand() * s, rand() * s * 0.6, s * (0.01 + rand() * 0.016), i % 2 ? '#ffffff' : '#f783ac')
+    emoji(ctx, '🎀', s * 0.2, s * 0.25, s * 0.1, -0.3)
+    emoji(ctx, '🌸', s * 0.8, s * 0.27, s * 0.08, 0.2)
+    emoji(ctx, '🩰', s * 0.5, s * 0.42, s * 0.27, -0.1)
+  },
+
+  realeza(ctx, s) {
+    const g = ctx.createRadialGradient(s * 0.5, s * 0.38, s * 0.05, s * 0.5, s * 0.5, s * 0.72)
+    g.addColorStop(0, '#2f56d0')
+    g.addColorStop(1, '#0a1a4f')
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, s, s)
+    ctx.strokeStyle = 'rgba(247,215,116,0.16)'
+    ctx.lineWidth = s * 0.004
+    const step = s * 0.1
+    for (let y = -step; y < s + step; y += step) {
+      for (let x = -step; x < s + step; x += step) {
+        ctx.beginPath()
+        ctx.moveTo(x, y - step * 0.35)
+        ctx.lineTo(x + step * 0.25, y)
+        ctx.lineTo(x, y + step * 0.35)
+        ctx.lineTo(x - step * 0.25, y)
+        ctx.closePath()
+        ctx.stroke()
+      }
+    }
+    ctx.strokeStyle = 'rgba(247,215,116,0.55)'
+    ctx.lineWidth = s * 0.008
+    ctx.beginPath()
+    ctx.arc(s / 2, s / 2, s * 0.41, 0, Math.PI * 2)
+    ctx.stroke()
+    const rand = rng(61)
+    for (let i = 0; i < 10; i++) sparkle(ctx, rand() * s, rand() * s * 0.6, s * (0.008 + rand() * 0.014), '#f7d774')
+    crown(ctx, s * 0.5, s * 0.38, s * 0.4, s * 0.25)
+  },
+
+  'super-heroi'(ctx, s) {
+    ctx.fillStyle = '#1c7ed6'
+    ctx.fillRect(0, 0, s, s)
+    rays(ctx, s * 0.5, s * 0.42, 22, s * 0.9, 'rgba(255,212,59,0.35)')
+    dots(ctx, s, s * 0.035, s * 0.007, 'rgba(255,255,255,0.12)')
+    star(ctx, s * 0.5, s * 0.42, s * 0.3, s * 0.2, 14, '#ffffff', 0)
+    star(ctx, s * 0.5, s * 0.42, s * 0.27, s * 0.18, 14, '#e03131', 0)
+    emoji(ctx, '⚡', s * 0.82, s * 0.22, s * 0.1, 0.2)
+    emoji(ctx, '🦸', s * 0.5, s * 0.42, s * 0.32)
+  },
+
+  games(ctx, s) {
+    vertical(ctx, s, ['#2b1a6b', '#4b2bb5', '#6741d9'])
+    const rand = rng(71)
+    const px = s * 0.035
+    const colors = ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#f783ac']
+    for (let i = 0; i < 46; i++) {
+      ctx.fillStyle = colors[i % colors.length]
+      ctx.globalAlpha = 0.35 + rand() * 0.4
+      ctx.fillRect(Math.floor(rand() * 28) * px, Math.floor(rand() * 18) * px, px * 0.8, px * 0.8)
+    }
+    ctx.globalAlpha = 1
+    const by = s * 0.68
+    const bw = s * 0.1
+    const bh = s * 0.05
+    for (let row = 0; row < 7; row++) {
+      for (let x = -bw; x < s + bw; x += bw) {
+        const ox = row % 2 ? bw / 2 : 0
+        ctx.fillStyle = '#c4672f'
+        ctx.fillRect(x + ox, by + row * bh, bw - s * 0.006, bh - s * 0.006)
+        ctx.fillStyle = 'rgba(0,0,0,0.18)'
+        ctx.fillRect(x + ox, by + row * bh + bh - s * 0.014, bw - s * 0.006, s * 0.008)
+      }
+    }
+    for (const [x, y] of [[0.2, 0.28], [0.8, 0.3], [0.68, 0.16]] as const) {
+      disc(ctx, s * x, s * y, s * 0.035, '#fab005')
+      disc(ctx, s * x, s * y, s * 0.022, '#ffd43b')
+      ctx.fillStyle = '#e67700'
+      ctx.fillRect(s * x - s * 0.004, s * y - s * 0.016, s * 0.008, s * 0.032)
+    }
+    emoji(ctx, '🍄', s * 0.24, s * 0.6, s * 0.1)
+    emoji(ctx, '⭐', s * 0.78, s * 0.58, s * 0.09, 0.2)
+    emoji(ctx, '🎮', s * 0.5, s * 0.44, s * 0.25, -0.1)
+  },
+
+  magia(ctx, s) {
+    const g = ctx.createRadialGradient(s * 0.5, s * 0.3, s * 0.05, s * 0.5, s * 0.5, s * 0.75)
+    g.addColorStop(0, '#5a33a0')
+    g.addColorStop(0.6, '#2a1660')
+    g.addColorStop(1, '#120a2b')
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, s, s)
+    const rand = rng(83)
+    for (let i = 0; i < 110; i++) disc(ctx, rand() * s, rand() * s * 0.7, s * (0.0015 + rand() * 0.004), `rgba(255,255,255,${0.4 + rand() * 0.6})`)
+    // castelo encantado
+    ctx.fillStyle = '#0e0722'
+    const base = s * 0.66
+    ctx.fillRect(s * 0.18, base - s * 0.07, s * 0.64, s * 0.4)
+    for (const [x, w, h] of [[0.16, 0.1, 0.2], [0.74, 0.1, 0.2], [0.44, 0.12, 0.3]] as const) {
+      ctx.fillRect(s * x, base - s * h, s * w, s * h + s * 0.4)
+      ctx.beginPath()
+      ctx.moveTo(s * (x - 0.015), base - s * h)
+      ctx.lineTo(s * (x + w / 2), base - s * (h + 0.12))
+      ctx.lineTo(s * (x + w + 0.015), base - s * h)
+      ctx.fill()
+    }
+    ctx.fillStyle = '#ffd43b'
+    for (const [x, y] of [[0.205, 0.52], [0.785, 0.52], [0.493, 0.42], [0.493, 0.52]] as const) ctx.fillRect(s * x, s * y, s * 0.015, s * 0.025)
+    for (let i = 0; i < 8; i++) sparkle(ctx, rand() * s, rand() * s * 0.5, s * (0.01 + rand() * 0.014), '#fcc419')
+    emoji(ctx, '🌙', s * 0.8, s * 0.18, s * 0.11, -0.3)
+    emoji(ctx, '🦉', s * 0.2, s * 0.26, s * 0.1)
+    emoji(ctx, '🪄', s * 0.64, s * 0.2, s * 0.11, 0.3)
+  },
+
+  'reino-do-gelo'(ctx, s) {
+    vertical(ctx, s, ['#e7f5ff', '#a5d8ff', '#4dabf7'])
+    rays(ctx, s * 0.5, s * 0.3, 24, s * 0.9, 'rgba(255,255,255,0.12)')
+    const rand = rng(97)
+    for (let i = 0; i < 16; i++) snowflake(ctx, rand() * s, rand() * s * 0.8, s * (0.015 + rand() * 0.03), 'rgba(255,255,255,0.9)')
+    ctx.fillStyle = 'rgba(255,255,255,0.75)'
+    for (const [x, w, h] of [[0.04, 0.22, 0.28], [0.24, 0.18, 0.2], [0.6, 0.2, 0.24], [0.78, 0.22, 0.3]] as const) {
+      ctx.beginPath()
+      ctx.moveTo(s * x, s * 0.66)
+      ctx.lineTo(s * (x + w / 2), s * (0.66 - h))
+      ctx.lineTo(s * (x + w), s * 0.66)
+      ctx.fill()
+    }
+    hill(ctx, s, s * 0.66, s * 0.015, '#ffffff', 2)
+    emoji(ctx, '⛄', s * 0.5, s * 0.43, s * 0.25)
+  },
+
+  ursinho(ctx, s) {
+    vertical(ctx, s, ['#fff9db', '#e6fcf5', '#c3fae8'])
+    for (const [x, r] of [[0.12, 0.13], [0.88, 0.12], [0.28, 0.09]] as const) {
+      ctx.fillStyle = '#8f5d26'
+      ctx.fillRect(s * x - s * 0.012, s * 0.45, s * 0.024, s * 0.2)
+      disc(ctx, s * x, s * 0.42, s * r, '#69db7c')
+      disc(ctx, s * x - s * r * 0.4, s * 0.46, s * r * 0.7, '#51cf66')
+      disc(ctx, s * x + s * r * 0.45, s * 0.47, s * r * 0.65, '#40c057')
+    }
+    hill(ctx, s, s * 0.62, s * 0.025, '#8ce99a', 1)
+    hill(ctx, s, s * 0.7, s * 0.02, '#69db7c', 3)
+    const rand = rng(103)
+    for (let i = 0; i < 12; i++) emoji(ctx, '🌸', rand() * s, s * (0.64 + rand() * 0.3), s * 0.045)
+    emoji(ctx, '🦋', s * 0.74, s * 0.22, s * 0.08, 0.2)
+    emoji(ctx, '🐻', s * 0.52, s * 0.44, s * 0.25)
+  },
+
+  tropical(ctx, s) {
+    vertical(ctx, s, ['#ffe3ec', '#ffc9c9', '#ff8fa3'])
+    disc(ctx, s * 0.5, s * 0.36, s * 0.22, 'rgba(255,243,191,0.7)')
+    const greens = ['#2b8a3e', '#37b24d', '#40c057']
+    let k = 0
+    for (const [x, y, base] of [[0, 0, 0.55], [s, 0, Math.PI - 0.55], [0, s * 0.2, 0.15], [s, s * 0.18, Math.PI - 0.15]] as const) {
+      for (let i = -2; i <= 2; i++) leaf(ctx, x, y, s * 0.3, base + i * 0.26, greens[k++ % greens.length])
+    }
+    emoji(ctx, '🌴', s * 0.38, s * 0.44, s * 0.2)
+    emoji(ctx, '🍍', s * 0.66, s * 0.45, s * 0.16, 0.1)
+    emoji(ctx, '🌺', s * 0.22, s * 0.36, s * 0.11, -0.2)
+    emoji(ctx, '🌺', s * 0.82, s * 0.42, s * 0.09, 0.3)
+  },
+
+  monstrinhos(ctx, s) {
+    vertical(ctx, s, ['#f3f0ff', '#d0bfff', '#b197fc'])
+    dots(ctx, s, s * 0.1, s * 0.016, 'rgba(255,255,255,0.35)')
+    const rand = rng(109)
+    for (let i = 0; i < 8; i++) sparkle(ctx, rand() * s, rand() * s * 0.6, s * (0.01 + rand() * 0.014), '#ffffff')
+    emoji(ctx, '👾', s * 0.2, s * 0.28, s * 0.1, -0.2)
+    emoji(ctx, '👾', s * 0.8, s * 0.3, s * 0.09, 0.2)
+    monster(ctx, s * 0.5, s * 0.45, s * 0.16)
+  },
+
+  musical(ctx, s) {
+    const stripes = ['#ffc9c9', '#ffd8a8', '#ffec99', '#d3f9d8', '#c5f6fa', '#d0ebff', '#e5dbff']
+    const w = s / stripes.length
+    stripes.forEach((c, i) => {
+      ctx.fillStyle = c
+      ctx.fillRect(i * w, 0, w + 1, s)
+    })
+    const rand = rng(113)
+    const notes = ['🎵', '🎶']
+    for (let i = 0; i < 9; i++) emoji(ctx, notes[i % 2], rand() * s, s * (0.08 + rand() * 0.5), s * (0.05 + rand() * 0.04), (rand() - 0.5) * 0.6)
+    emoji(ctx, '🎸', s * 0.34, s * 0.44, s * 0.2, -0.3)
+    emoji(ctx, '🥁', s * 0.68, s * 0.48, s * 0.16)
+  },
+
+  carros(ctx, s) {
+    vertical(ctx, s, ['#a5d8ff', '#d0ebff'], 0, s * 0.3)
+    cloud(ctx, s * 0.27, s * 0.13, s * 0.045)
+    cloud(ctx, s * 0.74, s * 0.17, s * 0.035)
+    const sq = s * 0.04
+    for (let r = 0; r < 2; r++) {
+      for (let c = 0; c < 26; c++) {
+        ctx.fillStyle = (r + c) % 2 ? '#212529' : '#ffffff'
+        ctx.fillRect(c * sq, s * 0.22 + r * sq, sq, sq)
+      }
+    }
+    ctx.fillStyle = '#51cf66'
+    ctx.fillRect(0, s * 0.3, s, s * 0.7)
+    ctx.fillStyle = '#495057'
+    ctx.fillRect(0, s * 0.37, s, s * 0.23)
+    for (let i = 0; i * s * 0.06 < s; i++) {
+      ctx.fillStyle = i % 2 ? '#ffffff' : '#e03131'
+      ctx.fillRect(i * s * 0.06, s * 0.36, s * 0.06, s * 0.016)
+      ctx.fillRect(i * s * 0.06, s * 0.6, s * 0.06, s * 0.016)
+    }
+    ctx.fillStyle = '#ffffff'
+    for (let x = 0; x < s; x += s * 0.12) ctx.fillRect(x, s * 0.479, s * 0.07, s * 0.012)
+    emoji(ctx, '🏁', s * 0.16, s * 0.14, s * 0.1, -0.2)
+    emoji(ctx, '🏆', s * 0.85, s * 0.3, s * 0.08)
+    emoji(ctx, '🏎️', s * 0.5, s * 0.46, s * 0.3)
+  },
+
   logo(ctx, s) {
     ctx.fillStyle = '#fffaf2'
     ctx.fillRect(0, 0, s, s)
@@ -498,6 +856,37 @@ const scenes: Record<string, (ctx: Ctx, s: number) => void> = {
     ctx.font = `600 ${s * 0.04}px ${ROUND}`
     ctx.fillText('aqui', s * 0.5, s * 0.42)
   },
+}
+
+// Tema "Sua arte": a imagem enviada pelo cliente cobre o rótulo inteiro
+function customArt(ctx: Ctx, s: number, image?: ImageBitmap | null) {
+  if (image) {
+    const scale = Math.max(s / image.width, s / image.height)
+    const w = image.width * scale
+    const h = image.height * scale
+    ctx.drawImage(image, (s - w) / 2, (s - h) / 2, w, h)
+    // escurece a parte de baixo para o nome aparecer
+    const g = ctx.createLinearGradient(0, s * 0.5, 0, s)
+    g.addColorStop(0, 'rgba(0,0,0,0)')
+    g.addColorStop(1, 'rgba(0,0,0,0.45)')
+    ctx.fillStyle = g
+    ctx.fillRect(0, s * 0.5, s, s * 0.5)
+    return
+  }
+  vertical(ctx, s, ['#fff4e6', '#ffe8cc'])
+  ctx.setLineDash([s * 0.025, s * 0.02])
+  ctx.strokeStyle = '#c2410c'
+  ctx.lineWidth = s * 0.008
+  ctx.beginPath()
+  ctx.arc(s * 0.5, s * 0.36, s * 0.2, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.setLineDash([])
+  emoji(ctx, '🖼️', s * 0.5, s * 0.32, s * 0.14)
+  ctx.fillStyle = '#c2410c'
+  ctx.font = `800 ${s * 0.05}px ${ROUND}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('SUA ARTE AQUI', s * 0.5, s * 0.46)
 }
 
 // Rótulo da própria marca (usado na abertura 3D)
@@ -589,7 +978,8 @@ export type LabelInput = { theme: string; name: string; detail: string }
 
 export const BRAND_LABEL = 'chocofeliz'
 
-export function drawLabel(canvas: HTMLCanvasElement, { theme, name, detail }: LabelInput) {
+// `image` só é usado no tema "Sua arte" (a imagem que a pessoa escolheu no configurador)
+export function drawLabel(canvas: HTMLCanvasElement, { theme, name, detail }: LabelInput, image?: ImageBitmap | null) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
   const s = canvas.width
@@ -603,7 +993,8 @@ export function drawLabel(canvas: HTMLCanvasElement, { theme, name, detail }: La
     brandLabel(ctx, s)
   } else {
     const t = themeById(theme)
-    ;(scenes[t.id] ?? scenes.festa)(ctx, s)
+    if (t.id === CUSTOM_ART) customArt(ctx, s, image)
+    else (scenes[t.id] ?? scenes.festa)(ctx, s)
     const title = name.trim()
     const sub = detail.trim()
     if (title) {
