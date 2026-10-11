@@ -208,7 +208,7 @@ export function Contact() {
             Mande os detalhes pelo formulário ou chame direto no WhatsApp. Respondemos com a proposta de arte, valores e prazos.
           </p>
 
-          <div className="mt-10">
+          <div className="mt-10 flex flex-wrap items-center gap-3">
             <Magnetic>
               <a
                 href={whatsappUrl(`Olá, ${brand.name}! Quero fazer um orçamento de pirulitos de chocolate.`)}
@@ -220,6 +220,17 @@ export function Contact() {
                 Chamar no WhatsApp
               </a>
             </Magnetic>
+            {instagramUrl && (
+              <a
+                href={instagramUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-line-strong px-7 py-4 font-semibold text-cream transition-colors hover:border-caramel/60 hover:bg-caramel/10"
+              >
+                <TbBrandInstagram aria-hidden className="text-xl" />
+                Seguir no Instagram
+              </a>
+            )}
           </div>
 
           {channels.length > 0 && (

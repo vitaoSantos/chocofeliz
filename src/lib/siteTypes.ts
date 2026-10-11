@@ -20,7 +20,42 @@ export type SiteSettings = {
   themes: Record<string, boolean>
 }
 
-export type SiteData = { settings: SiteSettings; photos: MuralPhoto[] }
+// Recado deixado na seção Comunidade
+export type CommunityComment = {
+  id: string
+  name: string
+  city: string
+  message: string
+  rating: number // 1 a 5; 0 = sem nota
+  createdAt: string
+}
+
+// Como o recado fica guardado: só os aprovados aparecem no site
+export type StoredComment = CommunityComment & { status: 'pending' | 'approved' }
+
+// Configuração dos recados: publicar direto ou esperar aprovação no painel
+export type CommunityConfig = { autoPublish: boolean }
+
+// Visitas por dia ("2026-10-11"), mais o total desde o começo
+export type VisitStats = { total: number; days: Record<string, number> }
+
+// O que o site recebe ao abrir (público)
+export type SiteData = {
+  settings: SiteSettings
+  photos: MuralPhoto[]
+  comments: CommunityComment[] // só os aprovados, mais recentes primeiro
+  visits: number
+  moderated: boolean // recados passam por aprovação antes de aparecer
+}
+
+// O que o painel recebe (com senha)
+export type AdminData = {
+  settings: SiteSettings
+  photos: MuralPhoto[]
+  comments: StoredComment[]
+  visits: VisitStats
+  community: CommunityConfig
+}
 
 export const emptySettings = (): SiteSettings => ({ chocolates: {}, themes: {} })
 
@@ -48,4 +83,10 @@ export function eventDateLabel(date: string) {
   const name = month ? MONTHS[Number(month) - 1] : undefined
   if (!year || !name) return year ?? ''
   return day ? `${Number(day)} de ${name} de ${year}` : `${name} de ${year}`
+}
+
+// Média das notas (só conta quem deu nota)
+export function averageRating(comments: CommunityComment[]) {
+  const rated = comments.filter((c) => c.rating > 0)
+  return { count: rated.length, average: rated.length ? rated.reduce((sum, c) => sum + c.rating, 0) / rated.length : 0 }
 }

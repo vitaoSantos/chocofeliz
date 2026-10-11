@@ -5,7 +5,7 @@ Itens marcados com **[?]** precisam de resposta. Depois é só preencher nos arq
 ## Contato (`src/data/brand.ts`)
 
 - **WhatsApp:** ✅ 35 98864-8782 (`5535988648782`), já em todos os botões
-- **Instagram:** [?] usuário, sem @
+- **Instagram:** ✅ [@choc_ofeliz](https://www.instagram.com/choc_ofeliz/), no menu, na Comunidade, no Contato e no rodapé
 - **E-mail:** [?] (opcional)
 - **Cidade / região atendida:** [?] (opcional, aparece no contato)
 
@@ -23,6 +23,11 @@ Itens marcados com **[?]** precisam de resposta. Depois é só preencher nos arq
 - Para usar o painel, falta criar a variável `ADMIN_PASSWORD` no Netlify (ver README). [?]
 - As fotos mostram nomes de crianças nos rótulos (as duas que vêm com o site: "Théo", "Henrique"). [?] Confirmar com as famílias antes de publicar, ou usar fotos sem nome.
 - Mais fotos: quanto mais variedade de temas, melhor. [?]
+
+## Comunidade (painel `/admin` → Comunidade)
+
+- Recados entram por aprovação (padrão). Para publicar direto, é só ligar a chave na aba Comunidade. [?]
+- O contador de visitas começa do zero no dia em que esta versão for publicada.
 
 ## Pode entrar depois
 

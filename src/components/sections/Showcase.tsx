@@ -8,6 +8,7 @@ import { brand } from '../../data/brand'
 import { gallery } from '../../data/gallery'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { photoUrl } from '../../lib/api'
+import { toColumns } from '../../lib/masonry'
 import { eventDateLabel, type MuralPhoto } from '../../lib/siteTypes'
 import { useScrollTo } from '../layout/Navbar'
 import { LabelDisc } from '../ui/LabelDisc'
@@ -57,16 +58,8 @@ const PAGE = 9
 // inclinação de cada foto no mural, em graus (repete a cada seis)
 const TILTS = [-2.2, 1.6, -1.2, 2.3, -1.7, 1.1]
 
-// Distribui as fotos nas colunas sempre pela coluna mais curta: as mais recentes ficam em cima
-function toColumns(items: MuralItem[], count: number) {
-  const columns = Array.from({ length: count }, () => ({ height: 0, items: [] as { item: MuralItem; index: number }[] }))
-  items.forEach((item, index) => {
-    const target = columns.reduce((low, c) => (c.height < low.height - 0.01 ? c : low))
-    target.items.push({ item, index })
-    target.height += item.height / item.width + 0.3 // foto + moldura e legenda
-  })
-  return columns
-}
+// altura relativa de cada foto no mural: a foto + moldura e legenda
+const photoHeight = (item: MuralItem) => item.height / item.width + 0.3
 
 function Polaroid({ item, index, onOpen }: { item: MuralItem; index: number; onOpen: () => void }) {
   return (
@@ -274,7 +267,7 @@ export function Showcase() {
   const visible = useMemo(() => items.slice(0, shown), [items, shown])
   // duas colunas já no celular (fica com cara de mural e a rolagem não fica enorme), três no computador
   const count = Math.max(1, Math.min(lg ? 3 : 2, visible.length))
-  const columns = useMemo(() => toColumns(visible, count), [visible, count])
+  const columns = useMemo(() => toColumns(visible, count, photoHeight), [visible, count])
   const rest = items.length - visible.length
 
   return (

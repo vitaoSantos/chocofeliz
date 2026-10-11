@@ -92,7 +92,7 @@ export function Navbar() {
           </a>
 
           <nav aria-label="Seções" className="hidden lg:block">
-            <ul className="flex items-center gap-1">
+            <ul className="flex items-center xl:gap-1">
               {navLinks.map((link) => {
                 const isActive = active === link.id
                 return (
@@ -101,7 +101,7 @@ export function Navbar() {
                       href={`#${link.id}`}
                       onClick={(e) => go(e, link.id)}
                       aria-current={isActive ? 'true' : undefined}
-                      className={`relative block rounded-full px-4 py-2 text-sm transition-colors duration-300 ${
+                      className={`relative block whitespace-nowrap rounded-full px-3 py-2 text-sm transition-colors duration-300 xl:px-4 ${
                         isActive ? 'text-cream' : 'text-muted hover:text-cream'
                       }`}
                     >
@@ -127,7 +127,8 @@ export function Navbar() {
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Instagram"
-                className="hidden size-10 place-items-center rounded-full text-muted transition-colors hover:text-cream sm:grid"
+                // entre 1024 e 1280 px o espaço vai para os links do menu; o Instagram segue no menu do celular e no rodapé
+                className="hidden size-10 place-items-center rounded-full text-muted transition-colors hover:text-cream sm:grid lg:hidden xl:grid"
               >
                 <TbBrandInstagram className="text-xl" aria-hidden />
               </a>
@@ -138,7 +139,7 @@ export function Navbar() {
                   href={orderLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="ml-1 inline-flex items-center gap-2 rounded-full bg-gradient-brand px-5 py-2.5 text-sm font-semibold text-cocoa transition-[filter] hover:brightness-110"
+                  className="ml-1 inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-gradient-brand px-5 py-2.5 text-sm font-semibold text-cocoa transition-[filter] hover:brightness-110"
                 >
                   <TbBrandWhatsapp aria-hidden className="text-base" />
                   Fazer pedido

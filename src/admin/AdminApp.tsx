@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { TbExternalLink, TbLock, TbLogout, TbPhoto, TbSettings } from 'react-icons/tb'
+import { TbExternalLink, TbLock, TbLogout, TbMessageCircle, TbPhoto, TbSettings } from 'react-icons/tb'
 import { Logo } from '../components/ui/Logo'
 import { adminLoad } from '../lib/api'
-import type { SiteData } from '../lib/siteTypes'
+import type { AdminData } from '../lib/siteTypes'
+import { CommunityPanel } from './CommunityPanel'
 import { MuralPanel } from './MuralPanel'
 import { OptionsPanel } from './OptionsPanel'
 
@@ -28,10 +29,10 @@ function save(password: string) {
 // Painel da ChocoFeliz: fotos do mural e opções do configurador. Não aparece no menu e não é indexado.
 export default function AdminApp() {
   const [password, setPassword] = useState(readSaved)
-  const [data, setData] = useState<SiteData | null>(null)
+  const [data, setData] = useState<AdminData | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [tab, setTab] = useState<'mural' | 'opcoes'>('mural')
+  const [tab, setTab] = useState<'mural' | 'opcoes' | 'comunidade'>('mural')
 
   useEffect(() => {
     document.title = 'Painel · ChocoFeliz'
@@ -63,7 +64,7 @@ export default function AdminApp() {
     if (password) void enter(password)
   }, [])
 
-  const update = useCallback((change: (d: SiteData) => SiteData) => setData((d) => (d ? change(d) : d)), [])
+  const update = useCallback((change: (d: AdminData) => AdminData) => setData((d) => (d ? change(d) : d)), [])
 
   function logout() {
     save('')
@@ -73,9 +74,11 @@ export default function AdminApp() {
 
   if (!data) return <Login onSubmit={enter} error={error} loading={loading} />
 
+  const pending = data.comments.filter((c) => c.status === 'pending').length
   const tabs = [
-    { id: 'mural' as const, label: 'Mural de fotos', icon: TbPhoto },
-    { id: 'opcoes' as const, label: 'Opções do site', icon: TbSettings },
+    { id: 'mural' as const, label: 'Mural de fotos', short: 'Mural', icon: TbPhoto, badge: 0 },
+    { id: 'opcoes' as const, label: 'Opções do site', short: 'Opções', icon: TbSettings, badge: 0 },
+    { id: 'comunidade' as const, label: 'Comunidade', short: 'Comunidade', icon: TbMessageCircle, badge: pending },
   ]
 
   return (
@@ -95,11 +98,19 @@ export default function AdminApp() {
                 type="button"
                 onClick={() => setTab(t.id)}
                 aria-current={tab === t.id ? 'page' : undefined}
-                className={`inline-flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2 text-sm transition-colors sm:flex-none ${
+                className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm transition-colors sm:flex-none sm:gap-2 sm:px-4 ${
                   tab === t.id ? 'bg-cream/10 text-cream' : 'text-muted hover:text-cream'
                 }`}
               >
-                <t.icon aria-hidden /> {t.label}
+                <t.icon aria-hidden className="shrink-0" />
+                <span className="sm:hidden">{t.short}</span>
+                <span className="hidden sm:inline">{t.label}</span>
+                {t.badge > 0 && (
+                  <span className="grid min-w-5 place-items-center rounded-full bg-berry px-1.5 text-[11px] font-semibold leading-5 text-cocoa">
+                    {t.badge}
+                    <span className="sr-only"> aguardando aprovação</span>
+                  </span>
+                )}
               </button>
             ))}
           </nav>
@@ -122,6 +133,9 @@ export default function AdminApp() {
         </div>
         <div hidden={tab !== 'opcoes'}>
           <OptionsPanel password={password} data={data} update={update} />
+        </div>
+        <div hidden={tab !== 'comunidade'}>
+          <CommunityPanel password={password} data={data} update={update} />
         </div>
       </main>
     </div>

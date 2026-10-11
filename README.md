@@ -1,6 +1,6 @@
 # ChocoFeliz
 
-Site-mostruário dos pirulitos de chocolate personalizados da ChocoFeliz: uma página única com uma abertura em 3D onde o pirulito é **construído e desembrulhado** conforme a pessoa rola a página, mais mural de festas, configurador ("Monte o seu") e contato. Tem também um **painel** (`/admin`) para publicar fotos no mural e ligar/desligar opções do site, sem mexer no código.
+Site-mostruário dos pirulitos de chocolate personalizados da ChocoFeliz: uma página única com uma abertura em 3D onde o pirulito é **construído e desembrulhado** conforme a pessoa rola a página, mais mural de festas, configurador ("Monte o seu"), comunidade (recados e contador de visitas) e contato. Tem também um **painel** (`/admin`) para publicar fotos no mural, ligar/desligar opções do site e cuidar dos recados, sem mexer no código.
 
 Mesma base do portfólio: **Vite + React + TypeScript + Tailwind v4 + Three.js (React Three Fiber) + Motion + Lenis**, publicado no **Netlify** com **Netlify Forms**, **Functions** e **Blobs** (sem banco de dados para manter).
 
@@ -24,7 +24,8 @@ Depois da abertura:
 - **Mostruário**: mural de festas com as fotos enviadas pelo painel (mais recentes primeiro) e as que vêm junto com o site, em estilo polaroide, com zoom (lightbox). Embaixo, uma faixa com os temas: tocar num tema leva direto ao configurador.
 - **Monte o seu**: pirulito 3D que muda na hora com tema (26 opções, incluindo **“Sua arte”**, em que a pessoa escolhe a imagem do personagem e vê no rótulo), nome, idade, chocolate, embalagem e fitilho de uma ou duas cores (17 cores prontas + qualquer outra no seletor). O botão gera a mensagem pronta para o WhatsApp.
 - **Como funciona**: os 4 passos, com uma "calda" que escorre conforme a página rola.
-- **Contato**: formulário (Netlify Forms) que já leva junto o pirulito montado no configurador.
+- **Comunidade**: os números do site (visitas, recados e nota média) e um mural de recados em bilhetinhos. Qualquer pessoa pode deixar o seu (nome, cidade, nota de 1 a 5 e a mensagem); por padrão ele aparece depois de aprovado no painel. Também leva para o Instagram.
+- **Contato**: formulário (Netlify Forms) que já leva junto o pirulito montado no configurador, botões de WhatsApp e Instagram.
 
 ## Rodando
 
@@ -51,10 +52,15 @@ Endereço: `seusite.netlify.app/admin` (não aparece no menu e não é indexado 
 
 - **Mural de fotos**: escolha uma ou várias fotos (dá para mandar direto do celular). O painel reduz cada foto (1800 px + miniatura de 800 px), corrige a rotação, remove localização e outros dados da câmera e já sugere o mês do evento pela data da foto. Título, tema e data são opcionais e podem ser editados depois; dá para apagar também. Cabem até 400 fotos.
 - **Opções do site**: liga e desliga os chocolates (meio amargo, branco…) e os temas que aparecem no “Monte o seu”. Pelo menos um chocolate e um tema ficam sempre ligados.
+- **Comunidade**: visitas (total, hoje, 7 e 30 dias, e um gráfico dos últimos 14 dias) e os recados: aprovar, tirar do site ou apagar. Uma chave escolhe se os recados novos entram direto ou esperam aprovação (o padrão é esperar). A aba mostra quantos estão esperando.
 
 As mudanças aparecem no site em poucos segundos. Tudo fica guardado no **Netlify Blobs** do próprio site (Netlify → Blobs → `chocofeliz`), sem banco de dados.
 
 Segurança: a senha é conferida na função `netlify/functions/admin.mts`; depois de 8 senhas erradas seguidas o acesso daquele endereço de internet trava por 15 minutos.
+
+**Contador de visitas:** cada navegador conta uma vez por dia; robôs de busca e prévias de link (WhatsApp, Facebook…) não contam, e cada endereço de internet soma no máximo 25 visitas por dia, para ninguém inflar o número. O site não guarda IP: só um código embaralhado, e só do dia.
+
+**Recados:** contra spam e abuso, o formulário tem um campo-armadilha invisível para robôs, recusa mensagens com links, aceita no máximo 3 recados por hora do mesmo endereço e, por padrão, só publica depois da aprovação no painel. Não há aviso por e-mail: os recados novos aparecem na aba Comunidade do painel.
 
 ## Onde editar
 
@@ -62,7 +68,8 @@ Segurança: a senha é conferida na função `netlify/functions/admin.mts`; depo
 | --- | --- |
 | Fotos do mural | **Painel** (`/admin` → Mural de fotos). Fotos fixas, que vêm com o site: `src/assets/mostruario/` + `src/data/gallery.ts` |
 | Ligar/desligar chocolates e temas | **Painel** (`/admin` → Opções do site) |
-| WhatsApp (35 98864-8782), Instagram, e-mail, cidade | `src/data/brand.ts` |
+| Aprovar ou apagar recados | **Painel** (`/admin` → Comunidade) |
+| WhatsApp (35 98864-8782), Instagram (@choc_ofeliz), e-mail, cidade | `src/data/brand.ts` |
 | Temas dos rótulos (nome, exemplo, cores) | `src/data/themes.ts` (o desenho de cada tema fica em `src/lib/labelArt.ts`) |
 | Chocolates (e qual começa ligado), cores de fitilho, ocasiões | `src/data/options.ts` |
 | Menu | `src/data/nav.ts` |
@@ -94,6 +101,7 @@ src/
   data/         conteúdo editável
   lib/          desenho dos rótulos em canvas, chamadas às funções, redução de imagens
 netlify/
-  functions/    site (opções + fotos, público), mural-image (entrega as fotos), admin (painel, com senha)
-  lib/          acesso ao Netlify Blobs e validação das opções
+  functions/    site (opções, fotos, recados e visitas, público), mural-image (entrega as fotos),
+                visit (conta visitas), comment (recebe recados), admin (painel, com senha)
+  lib/          acesso ao Netlify Blobs, validação das opções e limpeza de textos
 ```

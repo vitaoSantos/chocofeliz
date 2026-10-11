@@ -1,24 +1,35 @@
 import type { Context } from '@netlify/functions'
-import { newestFirst, type MuralPhoto } from '../../src/lib/siteTypes'
+import { newestFirst, type AdminData, type MuralPhoto } from '../../src/lib/siteTypes'
 import { cleanSettings, hasChocolateOn } from '../lib/settings'
-import { EMPTY_INDEX, env, hex, json, KEYS, PHOTO_ID, purgeSite, safeEqual, sha256, store, updateJSON, type PhotoIndex } from '../lib/store'
+import { clean } from '../lib/text'
+import {
+  EMPTY_COMMENTS,
+  EMPTY_INDEX,
+  env,
+  hex,
+  ITEM_ID,
+  json,
+  KEYS,
+  newId,
+  purgeSite,
+  readComments,
+  readCommunity,
+  readVisits,
+  safeEqual,
+  sha256,
+  store,
+  updateJSON,
+  type CommentIndex,
+  type PhotoIndex,
+} from '../lib/store'
 
 // Painel (/admin), protegido pela senha da variável de ambiente ADMIN_PASSWORD.
-// GET: opções e fotos. POST JSON { action }: enviar, editar ou apagar foto, salvar opções.
+// GET: tudo o que o painel mostra. POST JSON { action }: fotos (enviar, editar, apagar), opções,
+// recados (aprovar, esconder, apagar) e se os recados entram direto ou esperam aprovação.
 
 // O Netlify aceita até 6 MB por chamada (contando o base64): a foto grande cabe com folga
 const LIMITS = { title: 90, theme: 40, thumb: 600 * 1024, full: 3 * 1024 * 1024, photos: 400 }
 const LOCK = { attempts: 8, ms: 15 * 60_000 }
-
-// Remove caracteres de controle e espaços repetidos
-function clean(value: unknown, max: number) {
-  if (typeof value !== 'string') return ''
-  return value
-    .replace(/[\u0000-\u001F\u007F]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, max)
-}
 
 // Data do evento: "2025", "2025-03" ou "2025-03-15" (opcional)
 function cleanDate(value: unknown) {
@@ -50,10 +61,16 @@ function sniff(b: Uint8Array) {
   return null
 }
 
-async function loadAll() {
+async function loadAll(): Promise<AdminData> {
   const s = store()
-  const [settings, index] = await Promise.all([s.get(KEYS.settings, { type: 'json' }), s.get(KEYS.photos, { type: 'json' })])
-  return { settings: cleanSettings(settings), photos: (index as PhotoIndex | null)?.photos ?? [] }
+  const [settings, index, comments, visits, community] = await Promise.all([
+    s.get(KEYS.settings, { type: 'json' }),
+    s.get(KEYS.photos, { type: 'json' }),
+    readComments(),
+    readVisits(),
+    readCommunity(),
+  ])
+  return { settings: cleanSettings(settings), photos: (index as PhotoIndex | null)?.photos ?? [], comments, visits, community }
 }
 
 async function upload(body: Record<string, unknown>) {
@@ -76,7 +93,7 @@ async function upload(body: Record<string, unknown>) {
     return json({ error: `O mural chegou a ${LIMITS.photos} fotos. Apague algumas antigas para enviar novas.` }, 409)
   }
 
-  const id = Date.now().toString(36) + hex(crypto.getRandomValues(new Uint8Array(5)))
+  const id = newId()
   const photo: MuralPhoto = {
     id,
     title: clean(body.title, LIMITS.title),
@@ -101,7 +118,7 @@ async function upload(body: Record<string, unknown>) {
 // Corrige título, tema ou data de uma foto já publicada
 async function edit(body: Record<string, unknown>) {
   const id = body.id
-  if (typeof id !== 'string' || !PHOTO_ID.test(id)) return json({ error: 'Foto inválida.' }, 400)
+  if (typeof id !== 'string' || !ITEM_ID.test(id)) return json({ error: 'Foto inválida.' }, 400)
   const fields = { title: clean(body.title, LIMITS.title), theme: clean(body.theme, LIMITS.theme), date: cleanDate(body.date) }
   const index = await updateJSON<PhotoIndex>(KEYS.photos, EMPTY_INDEX, (current) =>
     current.photos.some((p) => p.id === id)
@@ -115,7 +132,7 @@ async function edit(body: Record<string, unknown>) {
 }
 
 async function remove(id: unknown) {
-  if (typeof id !== 'string' || !PHOTO_ID.test(id)) return json({ error: 'Foto inválida.' }, 400)
+  if (typeof id !== 'string' || !ITEM_ID.test(id)) return json({ error: 'Foto inválida.' }, 400)
   const s = store()
   await updateJSON<PhotoIndex>(KEYS.photos, EMPTY_INDEX, (current) => ({ photos: current.photos.filter((p) => p.id !== id) }))
   await Promise.all([s.delete(KEYS.photo(id, 'full')), s.delete(KEYS.photo(id, 'thumb'))])
@@ -129,6 +146,33 @@ async function saveSettings(raw: unknown) {
   await store().setJSON(KEYS.settings, settings)
   await purgeSite()
   return json({ settings })
+}
+
+// Recado: aprovar (aparece no site) ou esconder (volta para "aguardando")
+async function setCommentStatus(id: unknown, status: unknown) {
+  if (typeof id !== 'string' || !ITEM_ID.test(id)) return json({ error: 'Recado inválido.' }, 400)
+  if (status !== 'approved' && status !== 'pending') return json({ error: 'Ação inválida.' }, 400)
+  const index = await updateJSON<CommentIndex>(KEYS.comments, EMPTY_COMMENTS, (current) =>
+    current.comments.some((c) => c.id === id) ? { comments: current.comments.map((c) => (c.id === id ? { ...c, status } : c)) } : current,
+  )
+  const comment = index.comments.find((c) => c.id === id)
+  if (!comment) return json({ error: 'Recado não encontrado.' }, 404)
+  await purgeSite()
+  return json({ comment })
+}
+
+async function deleteComment(id: unknown) {
+  if (typeof id !== 'string' || !ITEM_ID.test(id)) return json({ error: 'Recado inválido.' }, 400)
+  await updateJSON<CommentIndex>(KEYS.comments, EMPTY_COMMENTS, (current) => ({ comments: current.comments.filter((c) => c.id !== id) }))
+  await purgeSite()
+  return json({ ok: true })
+}
+
+async function saveCommunity(raw: unknown) {
+  const community = { autoPublish: (raw as { autoPublish?: unknown } | null)?.autoPublish === true }
+  await store().setJSON(KEYS.community, community)
+  await purgeSite()
+  return json({ community })
 }
 
 // Trava por alguns minutos depois de várias senhas erradas seguidas (por IP)
@@ -169,5 +213,8 @@ export default async (req: Request, context: Context) => {
   if (body.action === 'edit') return edit(body)
   if (body.action === 'delete') return remove(body.id)
   if (body.action === 'settings') return saveSettings(body.settings)
+  if (body.action === 'comment-status') return setCommentStatus(body.id, body.status)
+  if (body.action === 'comment-delete') return deleteComment(body.id)
+  if (body.action === 'community') return saveCommunity(body.community)
   return json({ error: 'Ação inválida.' }, 400)
 }
