@@ -1,14 +1,14 @@
+import { PerformanceMonitor } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Bloom, EffectComposer, ToneMapping } from '@react-three/postprocessing'
 import type { MotionValue } from 'motion/react'
-import { ToneMappingMode } from 'postprocessing'
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { chocolates, ribbons } from '../../data/options'
 import { BRAND_LABEL, type LabelInput } from '../../lib/labelArt'
 import { builtState, Lollipop, type LollipopState } from './Lollipop'
 import { Glow, Sprinkles, Studio } from './Studio'
 import { useLabelTextures } from './useLabelTextures'
+import { Warmup } from './Warmup'
 
 // Rótulos que aparecem na abertura: primeiro o da marca, depois os temas girando
 export const heroLabels: LabelInput[] = [
@@ -49,13 +49,13 @@ function Director({ progress, play, reduced, mobile, onReady }: DirectorProps) {
   const state = useRef<LollipopState>({ ...builtState(), form: 0, stick: 0, label: 0, wrap: 0, ribbon: 0, dropY: 4.5 })
   const group = useRef<THREE.Group>(null)
   const spinner = useRef<THREE.Group>(null)
-  const labelMaterial = useRef<THREE.MeshPhysicalMaterial | null>(null)
-  const textures = useLabelTextures(heroLabels)
+  const labelMaterial = useRef<THREE.MeshStandardMaterial | null>(null)
+  // rótulo em 768px no computador e 512px no celular: nítido na tela e leve para a GPU
+  const { textures, ready } = useLabelTextures(heroLabels, mobile ? 512 : 768)
   const start = useRef<number | null>(null)
   const smoothed = useRef(progress.get())
   const mouse = useRef({ x: 0, y: 0 })
-  const shownLabel = useRef(-1)
-  const frames = useRef(0)
+  const shownLabel = useRef(0)
   const burst = useRef(0)
   const { viewport } = useThree()
 
@@ -73,8 +73,6 @@ function Director({ progress, play, reduced, mobile, onReady }: DirectorProps) {
     const s = state.current
     const clock = frame.clock.elapsedTime
 
-    if (frames.current < 3 && ++frames.current === 3) onReady?.()
-
     // ---------- Construção (abertura automática) ----------
     if (play && start.current === null) start.current = clock
     const t = reduced ? 10 : start.current === null ? -1 : clock - start.current
@@ -86,7 +84,8 @@ function Director({ progress, play, reduced, mobile, onReady }: DirectorProps) {
     const introRibbon = easeOut(seg(t, 2.6, 3.5))
 
     // ---------- Desembrulhar (scroll) ----------
-    smoothed.current = THREE.MathUtils.damp(smoothed.current, progress.get(), reduced ? 30 : 5, dt)
+    // o scroll já chega suave (Lenis); aqui só um amortecimento leve para o 3D andar junto com o texto
+    smoothed.current = THREE.MathUtils.damp(smoothed.current, progress.get(), reduced ? 30 : 12, dt)
     const p = smoothed.current
     const untie = inOut(seg(p, ...STORY.untie))
     const bloom = inOut(seg(p, ...STORY.bloom))
@@ -110,7 +109,7 @@ function Director({ progress, play, reduced, mobile, onReady }: DirectorProps) {
 
     // ---------- Troca de rótulo a cada giro ----------
     const labelIndex = Math.min(Math.floor(spinT + 0.5), SPINS)
-    if (labelMaterial.current && textures.length && labelIndex !== shownLabel.current) {
+    if (labelMaterial.current && labelIndex !== shownLabel.current) {
       labelMaterial.current.map = textures[labelIndex]
       labelMaterial.current.needsUpdate = true
       shownLabel.current = labelIndex
@@ -145,7 +144,7 @@ function Director({ progress, play, reduced, mobile, onReady }: DirectorProps) {
           chocolate={chocolates[0]}
           ribbonColor={ribbons[0].color}
           labelMaterial={labelMaterial}
-          labelMap={textures[0] ?? null}
+          labelMap={textures[0]}
           detail={mobile ? 0.6 : 1}
           annotations
           compactNotes={mobile}
@@ -153,32 +152,36 @@ function Director({ progress, play, reduced, mobile, onReady }: DirectorProps) {
       </group>
     </group>
     <Sprinkles count={mobile ? 50 : 100} burst={burst} />
+    {onReady && <Warmup onReady={onReady} textures={textures} texturesReady={ready} />}
     </>
   )
 }
 
-export default function HeroStage({ active = true, ...props }: DirectorProps) {
+export default function HeroStage({ active = true, onReady, ...props }: DirectorProps) {
   const { mobile } = props
-  const dpr = useMemo<[number, number]>(() => [1, mobile ? 1.5 : 1.75], [mobile])
+  // Resolução máxima 1.5x (acima disso o ganho visual é mínimo e o custo dobra);
+  // se o aparelho não aguentar 60 fps, cai para 1x sozinho
+  const [cap] = useState(() => Math.min(window.devicePixelRatio || 1, 1.5))
+  const [dpr, setDpr] = useState(cap)
+  const [warm, setWarm] = useState(false)
+  const handleReady = useCallback(() => {
+    setWarm(true)
+    onReady?.()
+  }, [onReady])
 
   return (
     <Canvas
-      frameloop={active ? 'always' : 'never'}
+      frameloop={warm && active ? 'always' : 'never'}
       camera={{ position: [0, 0, 8.2], fov: 32 }}
       dpr={dpr}
       gl={{ antialias: !mobile, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping }}
       aria-hidden
     >
+      <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(cap)} onFallback={() => setDpr(1)} flipflops={3} />
       <color attach="background" args={['#140b07']} />
-      <Glow color="#ff7a3d" opacity={0.32} scale={11} />
-      <Studio />
-      <Director {...props} />
-      {!mobile && (
-        <EffectComposer multisampling={4}>
-          <Bloom mipmapBlur intensity={0.7} luminanceThreshold={0.82} luminanceSmoothing={0.2} radius={0.7} />
-          <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-        </EffectComposer>
-      )}
+      <Glow color="#e65d28" opacity={0.7} scale={11} />
+      <Studio envSize={mobile ? 128 : 256} />
+      <Director {...props} onReady={handleReady} />
     </Canvas>
   )
 }

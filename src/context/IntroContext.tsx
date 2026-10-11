@@ -1,14 +1,17 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
 import { useReducedMotion } from '../hooks/useMediaQuery'
 
+export type SceneKey = 'hero' | 'builder'
+
 type IntroState = {
   // true quando a tela de carregamento terminou e a abertura pode animar
   introDone: boolean
   finishIntro: () => void
   showLoader: boolean
-  // true quando a cena 3D da abertura já desenhou os primeiros quadros
-  sceneReady: boolean
-  markSceneReady: () => void
+  // cenas 3D já compiladas e com tudo na GPU (prontas para rodar sem engasgar)
+  heroReady: boolean
+  scenesReady: boolean
+  markReady: (key: SceneKey) => void
 }
 
 const IntroContext = createContext<IntroState | null>(null)
@@ -16,12 +19,21 @@ const IntroContext = createContext<IntroState | null>(null)
 export function IntroProvider({ children }: { children: ReactNode }) {
   const reduced = useReducedMotion()
   const [done, setDone] = useState(false)
-  const [sceneReady, setSceneReady] = useState(false)
+  const [ready, setReady] = useState({ hero: false, builder: false })
   const finishIntro = useCallback(() => setDone(true), [])
-  const markSceneReady = useCallback(() => setSceneReady(true), [])
+  const markReady = useCallback((key: SceneKey) => setReady((r) => (r[key] ? r : { ...r, [key]: true })), [])
 
   return (
-    <IntroContext.Provider value={{ introDone: done || reduced, finishIntro, showLoader: !reduced, sceneReady, markSceneReady }}>
+    <IntroContext.Provider
+      value={{
+        introDone: done || reduced,
+        finishIntro,
+        showLoader: !reduced,
+        heroReady: ready.hero,
+        scenesReady: ready.hero && ready.builder,
+        markReady,
+      }}
+    >
       {children}
     </IntroContext.Provider>
   )

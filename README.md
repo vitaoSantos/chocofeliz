@@ -54,6 +54,16 @@ Os pedidos do formulário aparecem em **Netlify → Forms → pedido**. Para rec
 
 Enquanto o número de WhatsApp estiver vazio em `brand.ts`, os botões abrem o WhatsApp para a pessoa escolher o contato. **Preencha antes de publicar.**
 
+## Desempenho
+
+O 3D foi ajustado para pesar menos em notebook e celular. Se for mexer nele, vale manter:
+
+- **Sem pós-processamento** (bloom etc.): o brilho vem dos próprios shaders. Uma passada de tela cheia a mais por quadro pesa muito.
+- **Tudo é preparado atrás da tela de carregamento** (`Warmup.tsx`): compila os shaders, sobe texturas para a GPU e desenha cada peça uma vez. O configurador também é preparado nessa hora, e não quando a pessoa chega nele.
+- **Resolução no máximo 1,5×**, caindo para 1× sozinha se o aparelho não segurar 60 fps.
+- **Nada de `backdrop-filter` em cima do canvas**, e animações de scroll só com `transform`/`opacity` (nunca `height`, `top` etc.).
+- **Rótulos em canvas** são desenhados nos momentos ociosos e só quando estão perto da tela (`src/lib/idle.ts`).
+
 ## Estrutura
 
 ```

@@ -1,24 +1,66 @@
-import { Environment, Lightformer } from '@react-three/drei'
-import { useFrame } from '@react-three/fiber'
-import { useMemo, useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
+import { useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 
-// Iluminação de estúdio de confeitaria: softbox quente, contraluz rosado e reflexos para o brilho do chocolate.
-// O ambiente é gerado com Lightformers (sem baixar HDR de fora).
-export function Studio() {
+type Panel = { form: 'rect' | 'ring'; intensity: number; color: string; position: [number, number, number]; scale: [number, number, number] }
+
+// Painéis de luz que o chocolate e o fitilho refletem: softbox quente, contraluz rosado, aro branco
+const panels: Panel[] = [
+  { form: 'rect', intensity: 3.2, color: '#fff1e0', position: [-3, 3, 4], scale: [4, 2.5, 1] },
+  { form: 'rect', intensity: 1.6, color: '#ffd0e0', position: [4, 0.5, 3], scale: [2, 4, 1] },
+  { form: 'ring', intensity: 2.2, color: '#ffffff', position: [0, 4, -2], scale: [2.5, 2.5, 1] },
+  { form: 'rect', intensity: 1.1, color: '#ff9a4d', position: [0, -4, 2], scale: [7, 1, 1] },
+  { form: 'rect', intensity: 0.6, color: '#7bd8b5', position: [-5, 0, -1], scale: [1, 5, 1] },
+]
+
+// Mapa de reflexos gerado uma vez só (PMREM) a partir dos painéis acima: sem baixar HDR
+// e sem câmera cúbica rodando a cada quadro
+function StudioEnvironment({ size }: { size: number }) {
+  const gl = useThree((s) => s.gl)
+  const scene = useThree((s) => s.scene)
+
+  useLayoutEffect(() => {
+    const envScene = new THREE.Scene()
+    const rect = new THREE.PlaneGeometry()
+    const ring = new THREE.RingGeometry(0.5, 1, 48)
+    const materials = panels.map((panel) => {
+      const material = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(panel.color).multiplyScalar(panel.intensity),
+        side: THREE.DoubleSide,
+        toneMapped: false,
+      })
+      const mesh = new THREE.Mesh(panel.form === 'ring' ? ring : rect, material)
+      mesh.position.set(...panel.position)
+      mesh.scale.set(...panel.scale)
+      mesh.lookAt(0, 0, 0)
+      envScene.add(mesh)
+      return material
+    })
+    const pmrem = new THREE.PMREMGenerator(gl)
+    const target = pmrem.fromScene(envScene, 0, 0.1, 100, { size })
+    scene.environment = target.texture
+    pmrem.dispose()
+    rect.dispose()
+    ring.dispose()
+    materials.forEach((m) => m.dispose())
+    return () => {
+      if (scene.environment === target.texture) scene.environment = null
+      target.dispose()
+    }
+  }, [gl, scene, size])
+
+  return null
+}
+
+// Iluminação de estúdio de confeitaria
+export function Studio({ envSize = 256 }: { envSize?: number }) {
   return (
     <>
       <ambientLight intensity={0.35} color="#ffe9d6" />
       <directionalLight position={[-3, 4, 5]} intensity={2.2} color="#fff1df" />
       <directionalLight position={[4, -1, 3]} intensity={0.9} color="#ff9fbd" />
       <pointLight position={[0, 2.5, -3]} intensity={18} distance={9} color="#ffc27a" />
-      <Environment resolution={256} frames={1}>
-        <Lightformer form="rect" intensity={3.2} color="#fff1e0" position={[-3, 3, 4]} scale={[4, 2.5, 1]} />
-        <Lightformer form="rect" intensity={1.6} color="#ffd0e0" position={[4, 0.5, 3]} scale={[2, 4, 1]} />
-        <Lightformer form="ring" intensity={2.2} color="#ffffff" position={[0, 4, -2]} scale={2.5} />
-        <Lightformer form="rect" intensity={1.1} color="#ff9a4d" position={[0, -4, 2]} scale={[7, 1, 1]} />
-        <Lightformer form="rect" intensity={0.6} color="#7bd8b5" position={[-5, 0, -1]} scale={[1, 5, 1]} />
-      </Environment>
+      <StudioEnvironment size={envSize} />
     </>
   )
 }
@@ -52,16 +94,18 @@ export function Sprinkles({ count = 140, spread = 1, burst }: { count?: number; 
   }, [count, spread])
 
   const dummy = useMemo(() => new THREE.Object3D(), [])
-  const colored = useRef(false)
+
+  // As cores entram antes da primeira compilação: assim o shader já nasce com cor por instância
+  useLayoutEffect(() => {
+    const m = mesh.current
+    if (!m) return
+    data.forEach((d, i) => m.setColorAt(i, d.color))
+    if (m.instanceColor) m.instanceColor.needsUpdate = true
+  }, [data])
 
   useFrame((state) => {
     const m = mesh.current
     if (!m) return
-    if (!colored.current) {
-      data.forEach((d, i) => m.setColorAt(i, d.color))
-      if (m.instanceColor) m.instanceColor.needsUpdate = true
-      colored.current = true
-    }
     const t = state.clock.elapsedTime
     const push = 1 + (burst?.current ?? 0) * 0.35
     data.forEach((d, i) => {
@@ -98,12 +142,14 @@ export function Glow({ color = '#ff8a4d', opacity = 0.35, scale = 9 }: { color?:
           varying vec2 vUv;
           void main() {
             float d = length(vUv - 0.5) * 2.0;
-            float a = pow(max(1.0 - d, 0.0), 2.2) * uOpacity;
+            float a = pow(max(1.0 - d, 0.0), 1.9) * uOpacity;
             gl_FragColor = vec4(uColor, a);
+            #include <colorspace_fragment>
           }
         `,
         transparent: true,
         depthWrite: false,
+        toneMapped: false,
       }),
     [color, opacity],
   )

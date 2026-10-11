@@ -51,10 +51,10 @@ export const builtState = (): LollipopState => ({
 
 type Props = {
   state: RefObject<LollipopState>
-  chocolate: { color: string; sheen: string }
+  chocolate: { color: string }
   ribbonColor: string
-  labelMaterial: RefObject<THREE.MeshPhysicalMaterial | null>
-  labelMap: THREE.Texture | null
+  labelMaterial: RefObject<THREE.MeshStandardMaterial | null>
+  labelMap: THREE.Texture
   detail?: number
   annotations?: boolean
   compactNotes?: boolean
@@ -113,6 +113,58 @@ function buildRibbon(): RibbonPiece[] {
 
 const tmpVec = new THREE.Vector3()
 
+// As geometrias custam para gerar (ruído, curvas) e são iguais na abertura e no configurador:
+// ficam guardadas e são reaproveitadas (cada canvas só sobe a sua cópia para a GPU)
+type Geometries = { disk: THREE.BufferGeometry; wrap: THREE.BufferGeometry; skirt: THREE.BufferGeometry; sparks: THREE.BufferGeometry }
+const geometryCache = new Map<number, Geometries>()
+let ribbonCache: RibbonPiece[] | null = null
+
+function getGeometries(detail: number) {
+  let g = geometryCache.get(detail)
+  if (!g) {
+    g = {
+      disk: createDiskGeometry(Math.round(96 * detail)),
+      wrap: createWrapGeometry(detail),
+      skirt: createSkirtGeometry(detail),
+      sparks: createSparksGeometry(Math.round(220 * detail)),
+    }
+    geometryCache.set(detail, g)
+  }
+  return g
+}
+
+function getRibbon() {
+  ribbonCache ??= buildRibbon()
+  return ribbonCache
+}
+
+function createSparksGeometry(count: number) {
+  const positions = sampleWrapPoints(count)
+  const vel = new Float32Array(count * 3)
+  const colors = new Float32Array(count * 3)
+  const seeds = new Float32Array(count)
+  const palette = ['#ffd27a', '#ffffff', '#ff8fb0', '#ffe7b0'].map((c) => new THREE.Color(c))
+  for (let i = 0; i < count; i++) {
+    tmpVec.fromArray(positions, i * 3)
+    tmpVec.z *= 2.2
+    tmpVec.normalize().multiplyScalar(0.6 + ((i * 37) % 10) / 10)
+    tmpVec.y += 0.3
+    vel.set([tmpVec.x, tmpVec.y, tmpVec.z], i * 3)
+    const c = palette[i % palette.length]
+    colors.set([c.r, c.g, c.b], i * 3)
+    seeds[i] = ((i * 53) % 100) / 100
+  }
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  geo.setAttribute('aVel', new THREE.BufferAttribute(vel, 3))
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  geo.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1))
+  return geo
+}
+
+// O pirulito não recebe cliques: o raio do mouse não precisa testar milhares de triângulos
+const noRaycast = () => {}
+
 // Notas da vista explodida, presas a cada peça (deslocamento a partir do centro da peça)
 const NOTES = [
   { part: 'label', offset: [0.42, 0.62, 0.02], text: 'Rótulo comestível com a arte da sua festa' },
@@ -134,38 +186,16 @@ export function Lollipop({ state, chocolate, ribbonColor, labelMaterial, labelMa
   // elemento que recebe o HTML, e o drei perde o conteúdo da primeira nota montada
   const [notesReady, setNotesReady] = useState(false)
 
-  const diskGeo = useMemo(() => createDiskGeometry(Math.round(96 * detail)), [detail])
-  const wrapGeo = useMemo(() => createWrapGeometry(detail), [detail])
-  const skirtGeo = useMemo(() => createSkirtGeometry(detail), [detail])
+  const { disk: diskGeo, wrap: wrapGeo, skirt: skirtGeo, sparks } = useMemo(() => getGeometries(detail), [detail])
+  const ribbon = useMemo(() => getRibbon(), [])
   const wrapMat = useMemo(() => createWrapMaterial(), [])
   const skirtMat = useMemo(() => createWrapMaterial(), [])
-  const ribbon = useMemo(() => buildRibbon(), [])
-  const sparks = useMemo(() => {
-    const count = Math.round(220 * detail)
-    const positions = sampleWrapPoints(count)
-    const vel = new Float32Array(count * 3)
-    const colors = new Float32Array(count * 3)
-    const seeds = new Float32Array(count)
-    const palette = ['#ffd27a', '#ffffff', '#ff8fb0', '#ffe7b0'].map((c) => new THREE.Color(c))
-    for (let i = 0; i < count; i++) {
-      tmpVec.fromArray(positions, i * 3)
-      tmpVec.z *= 2.2
-      tmpVec.normalize().multiplyScalar(0.6 + ((i * 37) % 10) / 10)
-      tmpVec.y += 0.3
-      vel.set([tmpVec.x, tmpVec.y, tmpVec.z], i * 3)
-      const c = palette[i % palette.length]
-      colors.set([c.r, c.g, c.b], i * 3)
-      seeds[i] = ((i * 53) % 100) / 100
-    }
-    const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    geo.setAttribute('aVel', new THREE.BufferAttribute(vel, 3))
-    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-    geo.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1))
-    return geo
-  }, [detail])
-  const sparkMat = useMemo(() => createSparkMaterial(13 * dpr), [dpr])
+  const sparkPoints = useRef<THREE.Points>(null)
+  const lastNotes = useRef<number[]>([])
+  const sparkMat = useMemo(() => createSparkMaterial(15 * dpr), [dpr])
 
+  // Chocolate com verniz (clearcoat) e microtextura; rótulo, fitilho e palito com o material
+  // padrão, que é bem mais leve de compilar e de desenhar
   const chocolateMat = useMemo(() => {
     const noise = getChocolateNoise()
     return new THREE.MeshPhysicalMaterial({
@@ -176,21 +206,16 @@ export function Lollipop({ state, chocolate, ribbonColor, labelMaterial, labelMa
       bumpScale: 0.6,
       clearcoat: 0.7,
       clearcoatRoughness: 0.22,
-      sheen: 0.5,
-      sheenColor: new THREE.Color(chocolate.sheen),
-      sheenRoughness: 0.45,
     })
     // a cor é atualizada no efeito abaixo, sem recriar o material
   }, [])
 
   const ribbonMat = useMemo(
     () =>
-      new THREE.MeshPhysicalMaterial({
+      new THREE.MeshStandardMaterial({
         color: ribbonColor,
-        roughness: 0.28,
-        metalness: 0.15,
-        clearcoat: 1,
-        clearcoatRoughness: 0.08,
+        roughness: 0.22,
+        metalness: 0.25,
         side: THREE.DoubleSide,
         transparent: true,
       }),
@@ -199,22 +224,11 @@ export function Lollipop({ state, chocolate, ribbonColor, labelMaterial, labelMa
 
   useEffect(() => {
     chocolateMat.color.set(chocolate.color)
-    chocolateMat.sheenColor.set(chocolate.sheen)
-  }, [chocolate.color, chocolate.sheen, chocolateMat])
+  }, [chocolate.color, chocolateMat])
 
   useEffect(() => {
     ribbonMat.color.set(ribbonColor)
   }, [ribbonColor, ribbonMat])
-
-  useEffect(
-    () => () => {
-      diskGeo.dispose()
-      wrapGeo.dispose()
-      skirtGeo.dispose()
-      sparks.dispose()
-    },
-    [diskGeo, wrapGeo, skirtGeo, sparks],
-  )
 
   useEffect(
     () => () => {
@@ -223,9 +237,8 @@ export function Lollipop({ state, chocolate, ribbonColor, labelMaterial, labelMa
       sparkMat.dispose()
       chocolateMat.dispose()
       ribbonMat.dispose()
-      ribbon.forEach((p) => p.geometry.dispose())
     },
-    [wrapMat, skirtMat, sparkMat, chocolateMat, ribbonMat, ribbon],
+    [wrapMat, skirtMat, sparkMat, chocolateMat, ribbonMat],
   )
 
   useFrame((frame) => {
@@ -286,7 +299,8 @@ export function Lollipop({ state, chocolate, ribbonColor, labelMaterial, labelMa
       ribbonMat.opacity = 1 - THREE.MathUtils.smoothstep(off, 0.55, 1)
     }
 
-    // Faíscas
+    // Faíscas (só desenhadas enquanto estão no ar)
+    if (sparkPoints.current) sparkPoints.current.visible = s.burst > 0.001 && s.burst < 0.999
     sparkMat.uniforms.uBurst.value = s.burst
     sparkMat.uniforms.uTime.value = frame.clock.elapsedTime
 
@@ -300,7 +314,10 @@ export function Lollipop({ state, chocolate, ribbonColor, labelMaterial, labelMa
       })
       notes.current.forEach((el, i) => {
         if (!el) return
-        const local = THREE.MathUtils.clamp(a * 1.6 - i * 0.25, 0, 1)
+        const local = Math.round(THREE.MathUtils.clamp(a * 1.6 - i * 0.25, 0, 1) * 100) / 100
+        // só mexe no DOM quando o valor muda
+        if (lastNotes.current[i] === local) return
+        lastNotes.current[i] = local
         el.style.opacity = String(local)
         el.style.transform = `translateY(${(1 - local) * 10}px)`
       })
@@ -309,22 +326,14 @@ export function Lollipop({ state, chocolate, ribbonColor, labelMaterial, labelMa
 
   return (
     <group>
-      <mesh ref={chocolateMesh} geometry={diskGeo} material={chocolateMat} morphTargetInfluences={[0]} />
+      <mesh ref={chocolateMesh} geometry={diskGeo} material={chocolateMat} morphTargetInfluences={[0]} raycast={noRaycast} />
 
-      <mesh ref={label}>
+      <mesh ref={label} raycast={noRaycast}>
         <circleGeometry args={[DISK.labelRadius, Math.round(96 * detail)]} />
-        <meshPhysicalMaterial
-          ref={labelMaterial}
-          map={labelMap}
-          roughness={0.42}
-          clearcoat={0.5}
-          clearcoatRoughness={0.3}
-          polygonOffset
-          polygonOffsetFactor={-2}
-        />
+        <meshStandardMaterial ref={labelMaterial} map={labelMap} roughness={0.38} polygonOffset polygonOffsetFactor={-2} />
       </mesh>
 
-      <mesh ref={stick}>
+      <mesh ref={stick} raycast={noRaycast}>
         <cylinderGeometry args={[STICK.radius, STICK.radius, STICK.top - STICK.bottom, 20]} />
         <meshStandardMaterial color="#efe0c2" roughness={0.75} />
       </mesh>
@@ -340,8 +349,8 @@ export function Lollipop({ state, chocolate, ribbonColor, labelMaterial, labelMa
         ))}
 
       <group ref={wrap}>
-        <mesh geometry={wrapGeo} material={wrapMat} renderOrder={2} />
-        <mesh ref={skirt} geometry={skirtGeo} material={skirtMat} renderOrder={2} />
+        <mesh geometry={wrapGeo} material={wrapMat} renderOrder={2} raycast={noRaycast} />
+        <mesh ref={skirt} geometry={skirtGeo} material={skirtMat} renderOrder={2} raycast={noRaycast} />
       </group>
 
       <group ref={ribbonGroup}>
@@ -353,13 +362,14 @@ export function Lollipop({ state, chocolate, ribbonColor, labelMaterial, labelMa
                 material={ribbonMat}
                 position={piece.pivot.clone().negate().toArray()}
                 renderOrder={1}
+                raycast={noRaycast}
               />
             </group>
           </group>
         ))}
       </group>
 
-      <points geometry={sparks} material={sparkMat} renderOrder={3} frustumCulled={false} />
+      <points ref={sparkPoints} geometry={sparks} material={sparkMat} renderOrder={3} frustumCulled={false} visible={false} raycast={noRaycast} />
     </group>
   )
 }

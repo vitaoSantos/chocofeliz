@@ -1,6 +1,7 @@
 import { motion, useInView } from 'motion/react'
-import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { TbBrandWhatsapp, TbHandFinger, TbMinus, TbPlus } from 'react-icons/tb'
+import { useIntro } from '../../context/IntroContext'
 import { MIN_QUANTITY, useOrder } from '../../context/OrderContext'
 import { brand, whatsappUrl } from '../../data/brand'
 import { chocolates, ribbons } from '../../data/options'
@@ -45,8 +46,16 @@ export function Builder() {
   const reduced = useReducedMotion()
   const scrollTo = useScrollTo()
   const stage = useRef<HTMLDivElement>(null)
-  const near = useInView(stage, { margin: '400px 0px', once: true })
+  const { heroReady, markReady } = useIntro()
+  // O 3D daqui é preparado ainda durante a tela de carregamento (logo depois da abertura),
+  // e não no meio do scroll: assim chegar nesta seção não engasga
+  const near = useInView(stage, { margin: '600px 0px', once: true })
   const visible = useInView(stage)
+  const [stageReady, setStageReady] = useState(false)
+  const onStageReady = useCallback(() => {
+    setStageReady(true)
+    markReady('builder')
+  }, [markReady])
   const theme = themeById(order.theme)
   const choc = chocolates.find((c) => c.id === order.chocolate) ?? chocolates[0]
   const ribbon = ribbons.find((r) => r.id === order.ribbon) ?? ribbons[0]
@@ -90,9 +99,9 @@ export function Builder() {
               data-cursor="drag"
               className="border-gradient relative h-[42svh] overflow-hidden rounded-[2rem] bg-cocoa-2 lg:h-auto lg:aspect-[4/5]"
             >
-              {near && (
-                <StageBoundary fallback={<StageFallback />}>
-                  <Suspense fallback={<StageFallback />}>
+              {(heroReady || near) && (
+                <StageBoundary fallback={null}>
+                  <Suspense fallback={null}>
                     <BuilderStage
                       label={{ theme: order.theme, name: order.name, detail: order.detail }}
                       chocolate={order.chocolate}
@@ -101,9 +110,15 @@ export function Builder() {
                       active={visible}
                       mobile={!desktop}
                       reduced={reduced}
+                      onReady={onStageReady}
                     />
                   </Suspense>
                 </StageBoundary>
+              )}
+              {!stageReady && (
+                <div className="absolute inset-0 bg-cocoa-2">
+                  <StageFallback />
+                </div>
               )}
               <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-5">
                 <span className="rounded-full border border-line bg-cocoa/60 px-3 py-1.5 text-xs text-muted">{theme.label}</span>

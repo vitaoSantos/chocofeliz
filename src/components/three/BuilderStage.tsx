@@ -1,12 +1,13 @@
 import { PresentationControls } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { chocolates, ribbons } from '../../data/options'
 import type { LabelInput } from '../../lib/labelArt'
 import { builtState, Lollipop, type LollipopState } from './Lollipop'
 import { Glow, Sprinkles, Studio } from './Studio'
 import { useLiveLabelTexture } from './useLabelTextures'
+import { Warmup } from './Warmup'
 
 type Props = {
   label: LabelInput
@@ -16,12 +17,14 @@ type Props = {
   active: boolean
   mobile: boolean
   reduced: boolean
+  onReady?: () => void
 }
 
-function Scene({ label, chocolate, ribbon, wrapped, mobile, reduced }: Omit<Props, 'active'>) {
+function Scene({ label, chocolate, ribbon, wrapped, mobile, reduced, onReady }: Omit<Props, 'active'>) {
   const state = useRef<LollipopState>(builtState())
-  const labelMaterial = useRef<THREE.MeshPhysicalMaterial | null>(null)
-  const texture = useLiveLabelTexture(label)
+  const labelMaterial = useRef<THREE.MeshStandardMaterial | null>(null)
+  const { texture, ready } = useLiveLabelTexture(label, mobile ? 512 : 768)
+  const warmTextures = useMemo(() => [texture], [texture])
   const spinner = useRef<THREE.Group>(null)
   const spinTarget = useRef(0)
   const spin = useRef(0)
@@ -32,13 +35,6 @@ function Scene({ label, chocolate, ribbon, wrapped, mobile, reduced }: Omit<Prop
   useEffect(() => {
     spinTarget.current += Math.PI * 2
   }, [label.theme])
-
-  useEffect(() => {
-    if (labelMaterial.current && texture) {
-      labelMaterial.current.map = texture
-      labelMaterial.current.needsUpdate = true
-    }
-  }, [texture])
 
   useFrame((frame, delta) => {
     const dt = Math.min(delta, 0.05)
@@ -63,28 +59,40 @@ function Scene({ label, chocolate, ribbon, wrapped, mobile, reduced }: Omit<Prop
             ribbonColor={ribbonColor}
             labelMaterial={labelMaterial}
             labelMap={texture}
-            detail={mobile ? 0.6 : 0.85}
+            detail={mobile ? 0.6 : 1}
           />
+          {/* alvo invisível e simples para o arrastar (em vez de testar o pirulito inteiro) */}
+          <mesh visible={false} position={[0, -0.6, 0]}>
+            <cylinderGeometry args={[1.25, 1.25, 4.2, 12]} />
+          </mesh>
         </group>
       </PresentationControls>
       <Sprinkles count={mobile ? 30 : 60} spread={0.75} />
+      {onReady && <Warmup onReady={onReady} textures={warmTextures} texturesReady={ready} />}
     </>
   )
 }
 
-export default function BuilderStage({ active, ...props }: Props) {
+export default function BuilderStage({ active, onReady, ...props }: Props) {
+  const [warm, setWarm] = useState(false)
+  const [dpr] = useState(() => Math.min(window.devicePixelRatio || 1, 1.5))
+  const handleReady = useCallback(() => {
+    setWarm(true)
+    onReady?.()
+  }, [onReady])
+
   return (
     <Canvas
-      frameloop={active ? 'always' : 'never'}
+      frameloop={warm && active ? 'always' : 'never'}
       camera={{ position: [0, 0, 7.4], fov: 34 }}
-      dpr={[1, props.mobile ? 1.5 : 1.75]}
+      dpr={dpr}
       gl={{ antialias: true, alpha: false, toneMapping: THREE.ACESFilmicToneMapping }}
       aria-hidden
     >
       <color attach="background" args={['#1c100a']} />
-      <Glow color="#ff5c8a" opacity={0.22} scale={10} />
-      <Studio />
-      <Scene {...props} />
+      <Glow color="#c3172f" opacity={0.3} scale={10} />
+      <Studio envSize={props.mobile ? 128 : 256} />
+      <Scene {...props} onReady={handleReady} />
     </Canvas>
   )
 }

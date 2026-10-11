@@ -1,5 +1,5 @@
 import { motion, useInView, useScroll, useTransform, type MotionValue } from 'motion/react'
-import { Component, lazy, Suspense, useRef, type ReactNode } from 'react'
+import { Component, lazy, Suspense, useCallback, useRef, type ReactNode } from 'react'
 import { TbArrowDown, TbArrowRight } from 'react-icons/tb'
 import { useIntro } from '../../context/IntroContext'
 import { gallery } from '../../data/gallery'
@@ -92,9 +92,10 @@ function Intro({ progress }: { progress: MotionValue<number> }) {
   const opacity = useTransform(progress, [0, 0.07], [1, 0])
   const y = useTransform(progress, [0, 0.08], [0, -60])
   const pointerEvents = useTransform(opacity, (v) => (v > 0.5 ? 'auto' : 'none'))
+  // opacity + transform: o navegador anima sozinho (WAAPI), sem disputar a thread com o 3D
   const fade = (delay: number) => ({
-    initial: { opacity: 0, y: 20 },
-    animate: introDone ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 },
+    initial: { opacity: 0, transform: 'translateY(20px)' },
+    animate: introDone ? { opacity: 1, transform: 'translateY(0px)', transitionEnd: { transform: 'none' } } : { opacity: 0, transform: 'translateY(20px)' },
     transition: { duration: 0.9, ease: easeOut, delay },
   })
 
@@ -108,8 +109,17 @@ function Intro({ progress }: { progress: MotionValue<number> }) {
         <h1 className="max-w-3xl font-display text-[clamp(2.75rem,8.4vw,7.25rem)] font-semibold leading-[0.92] tracking-tight">
           <SplitText text="Desembrulhe a" play={introDone} delay={0.1} />
           <br />
-          <span className="wonk text-gradient inline-block pr-3">
-            <SplitText text="felicidade." play={introDone} delay={0.45} />
+          {/* a palavra em degradê sobe inteira: o degradê recortado no texto (background-clip)
+              some se cada letra for animada separadamente */}
+          <span className="inline-block overflow-hidden pb-[0.12em] align-bottom">
+            <motion.span
+              className="wonk text-gradient inline-block pr-3"
+              initial={{ transform: 'translateY(115%)' }}
+              animate={introDone ? { transform: 'translateY(0%)', transitionEnd: { transform: 'none' } } : { transform: 'translateY(115%)' }}
+              transition={{ duration: 1, ease: easeOut, delay: 0.45 }}
+            >
+              felicidade.
+            </motion.span>
           </span>
         </h1>
         <motion.p {...fade(0.8)} className="mt-5 max-w-lg text-base leading-relaxed text-muted sm:mt-6 sm:text-lg">
@@ -170,11 +180,12 @@ function ScrollHint({ progress }: { progress: MotionValue<number> }) {
 }
 
 function Rail({ progress }: { progress: MotionValue<number> }) {
-  const height = useTransform(progress, [0.08, 1], ['0%', '100%'])
+  // scaleY em vez de height: não recalcula o layout da página a cada quadro
+  const scaleY = useTransform(progress, [0.08, 1], [0, 1])
   return (
-    <div aria-hidden className="absolute left-5 top-1/2 hidden h-56 -translate-y-1/2 items-stretch gap-3 xl:flex">
+    <div aria-hidden className="absolute left-5 top-1/2 hidden h-56 -translate-y-1/2 items-stretch gap-3 min-[1360px]:flex">
       <div className="relative w-px bg-line-strong">
-        <motion.div style={{ height }} className="absolute inset-x-0 top-0 bg-gradient-to-b from-caramel to-berry" />
+        <motion.div style={{ scaleY }} className="absolute inset-0 origin-top bg-gradient-to-b from-caramel to-berry" />
       </div>
       <ol className="flex flex-col justify-between font-display text-xs text-cream/40">
         {steps.map((s) => (
@@ -189,7 +200,8 @@ export function Hero() {
   const section = useRef<HTMLElement>(null)
   const desktop = useIsDesktop()
   const reduced = useReducedMotion()
-  const { introDone, markSceneReady } = useIntro()
+  const { introDone, markReady } = useIntro()
+  const onReady = useCallback(() => markReady('hero'), [markReady])
   const inView = useInView(section)
   const { scrollYProgress } = useScroll({ target: section, offset: ['start start', 'end end'] })
 
@@ -203,7 +215,7 @@ export function Hero() {
         <div className="absolute inset-0" data-cursor="scene">
           <SceneBoundary fallback={fallback}>
             <Suspense fallback={null}>
-              <HeroStage progress={scrollYProgress} play={introDone} reduced={reduced} mobile={!desktop} active={inView} onReady={markSceneReady} />
+              <HeroStage progress={scrollYProgress} play={introDone} reduced={reduced} mobile={!desktop} active={inView} onReady={onReady} />
             </Suspense>
           </SceneBoundary>
         </div>
