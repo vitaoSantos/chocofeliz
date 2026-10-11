@@ -6,6 +6,7 @@ import { Loader } from './components/layout/Loader'
 import { Navbar } from './components/layout/Navbar'
 import { SmoothScroll } from './components/layout/SmoothScroll'
 import { Builder } from './components/sections/Builder'
+import { Community } from './components/sections/Community'
 import { Contact } from './components/sections/Contact'
 import { Hero } from './components/sections/Hero'
 import { HowItWorks } from './components/sections/HowItWorks'
@@ -32,6 +33,7 @@ export default function App() {
                 <Showcase />
                 <Builder />
                 <HowItWorks />
+                <Community />
                 <Contact />
               </main>
               <Footer />

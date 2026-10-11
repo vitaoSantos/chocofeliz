@@ -1,13 +1,13 @@
 import { useEffect, type ReactNode } from 'react'
-import type { SiteData } from '../lib/siteTypes'
+import type { AdminData } from '../lib/siteTypes'
 
 // Peças comuns às abas do painel
 
 export type PanelProps = {
   password: string
-  data: SiteData
+  data: AdminData
   // altera os dados já carregados (depois que a função confirmou a mudança)
-  update: (change: (data: SiteData) => SiteData) => void
+  update: (change: (data: AdminData) => AdminData) => void
 }
 
 export const field =

@@ -4,5 +4,6 @@ export const navLinks = [
   { id: 'mostruario', label: 'Mostruário' },
   { id: 'monte', label: 'Monte o seu' },
   { id: 'como-funciona', label: 'Como funciona' },
+  { id: 'comunidade', label: 'Comunidade' },
   { id: 'contato', label: 'Contato' },
 ]

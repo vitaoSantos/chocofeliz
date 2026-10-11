@@ -2,7 +2,7 @@ import { getStore } from '@netlify/blobs'
 import { purgeCache } from '@netlify/functions'
 // Traz a declaração do objeto global Netlify (Netlify.env)
 import type {} from '@netlify/functions'
-import type { MuralPhoto } from '../../src/lib/siteTypes'
+import type { CommunityConfig, MuralPhoto, StoredComment, VisitStats } from '../../src/lib/siteTypes'
 
 // Armazenamento chave-valor do próprio Netlify (Netlify Blobs): sem banco de dados para manter
 export const store = () => getStore({ name: 'chocofeliz', consistency: 'strong' })
@@ -14,10 +14,50 @@ export const KEYS = {
   photos: 'mural/index',
   settings: 'settings',
   photo: (id: string, size: 'thumb' | 'full') => `mural/${id}/${size}`,
+  comments: 'community/comments',
+  community: 'community/config',
+  commentRate: (who: string) => `community/rate/${who}`,
+  visits: 'stats/visits',
 }
 
-// Ids gerados pelo painel: letras minúsculas e números
-export const PHOTO_ID = /^[a-z0-9]{8,40}$/
+// Ids gerados pelas funções: letras minúsculas e números
+export const ITEM_ID = /^[a-z0-9]{8,40}$/
+export const newId = () => Date.now().toString(36) + hex(crypto.getRandomValues(new Uint8Array(5)))
+
+export type CommentIndex = { comments: StoredComment[] }
+export const EMPTY_COMMENTS: CommentIndex = { comments: [] }
+
+// Contador de visitas. `caps` guarda, só do dia atual, quantas visitas cada endereço de internet
+// (embaralhado, nunca o endereço em si) já somou: evita que alguém infle o número recarregando.
+export type StoredVisits = VisitStats & { caps?: { day: string; ips: Record<string, number> } }
+export const EMPTY_VISITS: StoredVisits = { total: 0, days: {} }
+
+export async function readCommunity(): Promise<CommunityConfig> {
+  const raw = (await store().get(KEYS.community, { type: 'json' })) as Partial<CommunityConfig> | null
+  return { autoPublish: raw?.autoPublish === true }
+}
+
+export async function readComments() {
+  return ((await store().get(KEYS.comments, { type: 'json' })) as CommentIndex | null)?.comments ?? []
+}
+
+export async function readVisits(): Promise<VisitStats> {
+  const raw = (await store().get(KEYS.visits, { type: 'json' })) as StoredVisits | null
+  return { total: raw?.total ?? 0, days: raw?.days ?? {} }
+}
+
+// Dia de hoje no horário de Brasília, no formato "2026-10-11"
+export const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
+
+// Robôs de busca, prévias de link (WhatsApp, Facebook…) e ferramentas não contam visita nem deixam recado
+export const isBot = (userAgent: string | null) =>
+  !userAgent || /bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|telegram|lighthouse|headless|python|curl|wget|httpclient/i.test(userAgent)
+
+// Endereço de internet embaralhado, para limitar abusos sem guardar o IP. O segredo do painel entra
+// na mistura: sem ele não dá para descobrir o IP testando todos os endereços possíveis.
+export async function ipKey(ip: string | undefined, salt: string) {
+  return hex((await sha256(`${ip ?? 'desconhecido'}:${salt}:${env('ADMIN_PASSWORD') ?? ''}:chocofeliz`)).slice(0, 8))
+}
 
 // Respostas públicas (site e fotos) ficam guardadas na CDN do Netlify e são limpas quando o painel muda algo
 export const CACHE_TAG = 'site'

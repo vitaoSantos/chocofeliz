@@ -7,7 +7,7 @@ export const brand = {
   // Enquanto estiver vazio, os botões abrem o WhatsApp para a pessoa escolher o contato.
   whatsapp: '5535988648782',
   // Só o usuário, sem @. Ex.: 'chocofeliz'
-  instagram: '',
+  instagram: 'choc_ofeliz',
   email: '',
   // Ex.: 'Poços de Caldas e região'
   city: '',
@@ -18,4 +18,4 @@ export function whatsappUrl(message: string) {
   return brand.whatsapp ? `https://wa.me/${brand.whatsapp}?text=${text}` : `https://wa.me/?text=${text}`
 }
 
-export const instagramUrl = brand.instagram ? `https://instagram.com/${brand.instagram}` : ''
+export const instagramUrl = brand.instagram ? `https://www.instagram.com/${brand.instagram}/` : ''

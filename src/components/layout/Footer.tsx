@@ -1,4 +1,5 @@
 import { TbArrowUp, TbBrandInstagram, TbBrandWhatsapp, TbMail } from 'react-icons/tb'
+import { useSiteData } from '../../context/SiteDataContext'
 import { brand, instagramUrl, whatsappUrl } from '../../data/brand'
 import { navLinks } from '../../data/nav'
 import { Logo } from '../ui/Logo'
@@ -6,6 +7,7 @@ import { useScrollTo } from './Navbar'
 
 export function Footer() {
   const scrollTo = useScrollTo()
+  const { visits } = useSiteData()
 
   return (
     <footer className="relative mt-10 overflow-hidden border-t border-line">
@@ -75,6 +77,7 @@ export function Footer() {
       <div className="container-x flex flex-col justify-between gap-3 border-t border-line py-6 text-xs text-faint sm:flex-row sm:items-center">
         <span>
           © {new Date().getFullYear()} {brand.name}
+          {visits > 0 && <> · {visits.toLocaleString('pt-BR')} {visits === 1 ? 'visita' : 'visitas'}</>}
         </span>
         <span className="font-hand text-lg text-muted">feito com chocolate e carinho</span>
         <button type="button" onClick={() => scrollTo('inicio')} className="inline-flex items-center gap-1 hover:text-cream">
