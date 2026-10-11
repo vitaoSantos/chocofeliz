@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { TbBrandInstagram, TbBrandWhatsapp, TbCheck, TbMail, TbMapPin, TbSend, TbX } from 'react-icons/tb'
 import { useOrder } from '../../context/OrderContext'
 import { brand, instagramUrl, whatsappUrl } from '../../data/brand'
+import { CUSTOM_ART } from '../../data/themes'
 import { LabelDisc } from '../ui/LabelDisc'
 import { Magnetic } from '../ui/Magnetic'
 import { Reveal } from '../ui/Reveal'
@@ -24,7 +25,7 @@ function validate(values: Fields): Errors {
 
 // Envia para o Netlify Forms (o formulário estático "pedido" está no index.html)
 function OrderForm() {
-  const { order, touched, summary } = useOrder()
+  const { order, touched, summary, art } = useOrder()
   const [values, setValues] = useState<Fields>(empty)
   const [errors, setErrors] = useState<Errors>({})
   const [status, setStatus] = useState<Status>('idle')
@@ -105,7 +106,7 @@ function OrderForm() {
   )
 
   return (
-    <form name="pedido" method="POST" onSubmit={onSubmit} noValidate className="border-gradient grid gap-5 rounded-[2rem] bg-cocoa-2/80 p-6 sm:p-8">
+    <form name="pedido" method="POST" onSubmit={onSubmit} noValidate className="border-gradient grid grid-cols-1 gap-5 rounded-[2rem] bg-cocoa-2/80 p-6 sm:p-8">
       <p hidden>
         <label>
           Não preencha: <input name="bot-field" tabIndex={-1} autoComplete="off" />
@@ -114,7 +115,12 @@ function OrderForm() {
 
       {withOrder && (
         <div className="flex items-center gap-4 rounded-2xl border border-caramel/30 bg-caramel/[0.07] p-3 pr-4">
-          <LabelDisc input={{ theme: order.theme, name: order.name, detail: order.detail }} size={128} className="w-14 shrink-0" />
+          <LabelDisc
+            input={{ theme: order.theme, name: order.name, detail: order.detail }}
+            image={order.theme === CUSTOM_ART ? art : null}
+            size={128}
+            className="w-14 shrink-0"
+          />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-caramel">Seu pirulito montado vai junto</p>
             <p className="mt-1 truncate text-sm text-cream/90">{summary}</p>
@@ -246,7 +252,8 @@ export function Contact() {
           )}
         </Reveal>
 
-        <Reveal delay={0.1}>
+        {/* min-w-0: o resumo do pedido (uma linha só, cortada com "…") não pode alargar a coluna */}
+        <Reveal delay={0.1} className="min-w-0">
           <OrderForm />
         </Reveal>
       </div>

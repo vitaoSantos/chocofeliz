@@ -19,6 +19,11 @@ export function Cursor() {
     let target = 1
     let raf = 0
 
+    // o laço de animação para quando o anel alcança o mouse e volta no próximo movimento
+    const wake = () => {
+      if (!raf) raf = requestAnimationFrame(loop)
+    }
+
     const onMove = (e: PointerEvent) => {
       x = e.clientX
       y = e.clientY
@@ -29,24 +34,25 @@ export function Cursor() {
       if (hint.current) hint.current.style.opacity = drag ? '1' : '0'
       ring.current?.style.setProperty('opacity', '1')
       dot.current?.style.setProperty('opacity', '1')
+      wake()
     }
     const onLeave = () => {
       ring.current?.style.setProperty('opacity', '0')
       dot.current?.style.setProperty('opacity', '0')
     }
 
-    const loop = () => {
+    function loop() {
       rx += (x - rx) * 0.16
       ry += (y - ry) * 0.16
       scale += (target - scale) * 0.14
       if (ring.current) ring.current.style.transform = `translate3d(${rx}px, ${ry}px, 0) translate(-50%, -50%) scale(${scale})`
       if (dot.current) dot.current.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`
-      raf = requestAnimationFrame(loop)
+      const settled = Math.abs(x - rx) < 0.1 && Math.abs(y - ry) < 0.1 && Math.abs(target - scale) < 0.002
+      raf = settled ? 0 : requestAnimationFrame(loop)
     }
 
     window.addEventListener('pointermove', onMove)
     document.documentElement.addEventListener('pointerleave', onLeave)
-    raf = requestAnimationFrame(loop)
     return () => {
       window.removeEventListener('pointermove', onMove)
       document.documentElement.removeEventListener('pointerleave', onLeave)

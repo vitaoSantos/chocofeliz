@@ -35,7 +35,8 @@ const steps = [
 export function HowItWorks() {
   const list = useRef<HTMLOListElement>(null)
   const { scrollYProgress } = useScroll({ target: list, offset: ['start 75%', 'end 55%'] })
-  const fill = useTransform(scrollYProgress, [0, 1], ['0%', '100%'])
+  // scaleY em vez de height: a "calda" escorre sem recalcular o layout a cada quadro
+  const fill = useTransform(scrollYProgress, [0, 1], [0, 1])
 
   return (
     <section id="como-funciona" className="relative py-24 sm:py-32">
@@ -57,8 +58,8 @@ export function HowItWorks() {
           <span aria-hidden className="absolute bottom-6 left-[11px] top-6 w-[6px] rounded-full bg-cream/[0.06] sm:left-[19px]" />
           <motion.span
             aria-hidden
-            style={{ height: fill }}
-            className="absolute left-[11px] top-6 w-[6px] rounded-full bg-gradient-to-b from-milk-soft via-milk to-caramel shadow-[0_0_18px_rgb(234_162_76/0.45)] sm:left-[19px]"
+            style={{ scaleY: fill }}
+            className="absolute bottom-6 left-[11px] top-6 w-[6px] origin-top rounded-full bg-gradient-to-b from-milk-soft via-milk to-caramel shadow-[0_0_18px_rgb(234_162_76/0.45)] sm:left-[19px]"
           />
           {steps.map((step, i) => (
             <motion.li

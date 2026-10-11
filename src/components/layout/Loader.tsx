@@ -13,15 +13,21 @@ const WAVE =
 const DRIPS =
   'M0 0 H1200 V18 C1188 18 1186 30 1184 52 C1182 70 1166 70 1164 52 C1162 34 1158 18 1140 18 H1010 C996 18 994 34 992 74 C990 100 970 100 968 74 C966 40 962 18 948 18 H820 C808 18 806 28 805 40 C804 52 792 52 791 40 C790 28 786 18 774 18 H640 C624 18 622 40 620 92 C618 124 596 124 594 92 C592 40 588 18 574 18 H430 C418 18 416 30 415 48 C414 64 400 64 399 48 C398 30 394 18 382 18 H250 C236 18 234 36 232 66 C230 88 212 88 210 66 C208 36 204 18 192 18 H70 C60 18 58 26 57 36 C56 46 46 46 45 36 C44 26 40 18 30 18 H0 Z'
 
-// Tela de abertura: o chocolate derrete e enche a tela; quando a cena 3D está pronta,
+// Tela de abertura: o chocolate derrete e enche a tela; quando as cenas 3D estão prontas,
 // a "cortina" de chocolate sobe com gotas escorrendo.
+// O enchimento e a cortina são animações de transform feitas pelo próprio navegador (fora da
+// thread principal): continuam lisas mesmo enquanto o 3D está sendo preparado por trás.
+const FILL_SECONDS = 1.6
+
 export function Loader() {
-  const { showLoader, finishIntro, sceneReady } = useIntro()
+  const { showLoader, finishIntro, heroReady, scenesReady } = useIntro()
   const lenis = useLenis()
-  const [count, setCount] = useState(0)
+  const counter = useRef<HTMLSpanElement>(null)
   const [filled, setFilled] = useState(false)
   const [visible, setVisible] = useState(showLoader)
   const released = useRef(false)
+  const filledAt = useRef(0)
+  const heroReadyAt = useRef(0)
 
   useEffect(() => {
     if (!visible) return
@@ -32,13 +38,18 @@ export function Loader() {
   useEffect(() => {
     if (!showLoader) return
     let cancelled = false
+    // o número é escrito direto no DOM: sem re-render do React a cada quadro
     const controls = animate(0, 100, {
-      duration: 2.1,
+      duration: FILL_SECONDS,
       ease: [0.45, 0, 0.25, 1],
-      onUpdate: (v) => setCount(Math.round(v)),
+      onUpdate: (v) => {
+        if (counter.current) counter.current.textContent = Math.round(v).toString().padStart(3, '0')
+      },
     })
     Promise.all([controls, document.fonts.ready]).then(() => {
-      if (!cancelled) setFilled(true)
+      if (cancelled) return
+      filledAt.current = performance.now()
+      setFilled(true)
     })
     return () => {
       cancelled = true
@@ -46,7 +57,12 @@ export function Loader() {
     }
   }, [showLoader])
 
-  // Sobe quando encheu e o 3D já desenhou (ou depois de um tempo máximo, para não travar ninguém)
+  useEffect(() => {
+    if (heroReady && !heroReadyAt.current) heroReadyAt.current = performance.now()
+  }, [heroReady])
+
+  // Sobe quando encheu e as cenas estão prontas. Se o aparelho for lento, não segura ninguém:
+  // no máximo 1,2 s depois da abertura pronta (o configurador termina por trás) ou 3 s no total.
   useEffect(() => {
     if (!filled) return
     const go = () => {
@@ -55,13 +71,13 @@ export function Loader() {
       setVisible(false)
       setTimeout(finishIntro, 450)
     }
-    if (sceneReady) {
-      const id = setTimeout(go, 250)
-      return () => clearTimeout(id)
-    }
-    const id = setTimeout(go, 4000)
+    const now = performance.now()
+    const deadlines = [filledAt.current + 3000]
+    if (heroReady) deadlines.push(heroReadyAt.current + 1200)
+    if (scenesReady) deadlines.push(now + 150)
+    const id = setTimeout(go, Math.max(0, Math.min(...deadlines) - now))
     return () => clearTimeout(id)
-  }, [filled, sceneReady, finishIntro])
+  }, [filled, heroReady, scenesReady, finishIntro])
 
   function release() {
     document.documentElement.style.overflow = ''
@@ -74,12 +90,13 @@ export function Loader() {
         <motion.div
           key="loader"
           className="fixed inset-0 z-[95]"
-          exit={{ y: '-118%' }}
+          initial={{ transform: 'translateY(0%)' }}
+          exit={{ transform: 'translateY(-118%)' }}
           transition={{ duration: 1.25, ease: easeExpo }}
         >
           <div className="absolute inset-0 overflow-hidden bg-cocoa">
             {/* chocolate subindo */}
-            <div className="absolute inset-x-0 bottom-0" style={{ height: `${count}%` }}>
+            <div className="choco-fill absolute inset-0" style={{ animationDuration: `${FILL_SECONDS}s` }}>
               <svg
                 viewBox="0 0 720 40"
                 preserveAspectRatio="none"
@@ -104,15 +121,11 @@ export function Loader() {
             </div>
 
             <div className="flex flex-col items-center gap-5 text-center">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.6, rotate: -20 }}
-                animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                transition={{ type: 'spring', stiffness: 160, damping: 12 }}
-              >
-                <motion.div animate={{ rotate: [0, -6, 6, 0] }} transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}>
+              <div className="logo-pop">
+                <div className="logo-wobble">
                   <LogoMark className="size-24 drop-shadow-[0_12px_30px_rgb(0_0_0/0.4)] sm:size-28" />
-                </motion.div>
-              </motion.div>
+                </div>
+              </div>
               <p className="font-hand text-3xl text-cream sm:text-4xl">
                 {filled ? 'Pronto para desembrulhar!' : 'Derretendo o chocolate…'}
               </p>
@@ -123,7 +136,7 @@ export function Loader() {
                 Temperando no ponto certo
               </span>
               <span className="font-display text-6xl font-semibold tabular-nums text-cream sm:text-8xl">
-                {count.toString().padStart(3, '0')}
+                <span ref={counter}>000</span>
                 <span className="text-gradient">%</span>
               </span>
             </div>

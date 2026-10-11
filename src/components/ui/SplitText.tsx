@@ -20,8 +20,8 @@ export function SplitText({ text, className, delay = 0, stagger = 0.028, play = 
     <span key={i} className="inline-block overflow-hidden pb-[0.12em] align-bottom">
       <motion.span
         className="inline-block"
-        initial={{ y: '115%' }}
-        animate={{ y: play ? '0%' : '115%' }}
+        initial={{ transform: 'translateY(115%)' }}
+        animate={play ? { transform: 'translateY(0%)', transitionEnd: { transform: 'none' } } : { transform: 'translateY(115%)' }}
         transition={{ duration: 0.9, ease: easeOut, delay: delay + i * step }}
       >
         {content}

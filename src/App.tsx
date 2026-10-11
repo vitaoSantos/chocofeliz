@@ -13,28 +13,31 @@ import { Occasions } from './components/sections/Occasions'
 import { Showcase } from './components/sections/Showcase'
 import { IntroProvider } from './context/IntroContext'
 import { OrderProvider } from './context/OrderContext'
+import { SiteDataProvider } from './context/SiteDataContext'
 
 export default function App() {
   return (
     <MotionConfig reducedMotion="user">
       <IntroProvider>
-        <OrderProvider>
-          <SmoothScroll>
-            <Background />
-            <Loader />
-            <Cursor />
-            <Navbar />
-            <main id="conteudo">
-              <Hero />
-              <Occasions />
-              <Showcase />
-              <Builder />
-              <HowItWorks />
-              <Contact />
-            </main>
-            <Footer />
-          </SmoothScroll>
-        </OrderProvider>
+        <SiteDataProvider>
+          <OrderProvider>
+            <SmoothScroll>
+              <Background />
+              <Loader />
+              <Cursor />
+              <Navbar />
+              <main id="conteudo">
+                <Hero />
+                <Occasions />
+                <Showcase />
+                <Builder />
+                <HowItWorks />
+                <Contact />
+              </main>
+              <Footer />
+            </SmoothScroll>
+          </OrderProvider>
+        </SiteDataProvider>
       </IntroProvider>
     </MotionConfig>
   )

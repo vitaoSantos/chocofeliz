@@ -133,25 +133,34 @@ const wrapFragment = /* glsl */ `
     vec3 col = mix(vec3(1.0, 0.98, 0.95), irid, 0.35) * (0.22 + fres) + vec3(1.0, 0.97, 0.92) * spec;
     float alpha = 0.03 + fres * 0.4 + spec * 0.85;
 
-    float n = snoise(vLocal * 3.2) * 0.5 + 0.5;
-    const float e = 0.08;
+    float shown = 1.0;
+    float kept = 1.0;
+    float edge = 0.0;
+    // O ruído só é calculado enquanto o celofane aparece ou some (na maior parte do tempo, nem roda)
+    if (uReveal < 0.999 || uDissolve > 0.001) {
+      float n = snoise(vLocal * 3.2) * 0.5 + 0.5;
+      const float e = 0.09;
 
-    // aparece do franzido para cima
-    float rKey = n * 0.55 + vV * 0.45;
-    float rT = uReveal * (1.0 + e);
-    float shown = 1.0 - smoothstep(rT - e, rT, rKey);
-    float rEdge = shown * smoothstep(rT - e * 2.5, rT - e, rKey) * step(0.001, uReveal) * step(uReveal, 0.999);
+      // aparece do franzido para cima
+      float rKey = n * 0.55 + vV * 0.45;
+      float rT = uReveal * (1.0 + e);
+      shown = 1.0 - smoothstep(rT - e, rT, rKey);
+      float rEdge = shown * smoothstep(rT - e * 2.8, rT - e, rKey) * step(0.001, uReveal) * step(uReveal, 0.999);
 
-    // some das pontas para dentro, com borda dourada
-    float dKey = n * 0.5 + (1.0 - vV) * 0.5;
-    float dT = uDissolve * (1.0 + e);
-    float kept = smoothstep(dT - e, dT, dKey);
-    float dEdge = kept * (1.0 - smoothstep(dT, dT + e * 1.5, dKey)) * step(0.001, uDissolve);
+      // some das pontas para dentro, com borda dourada
+      float dKey = n * 0.5 + (1.0 - vV) * 0.5;
+      float dT = uDissolve * (1.0 + e);
+      kept = smoothstep(dT - e, dT, dKey);
+      float dEdge = kept * (1.0 - smoothstep(dT, dT + e * 1.8, dKey)) * step(0.001, uDissolve);
 
-    float edge = max(rEdge, dEdge);
-    col += uGlow * edge * 2.2;
+      edge = max(rEdge, dEdge);
+    }
+
+    col += uGlow * edge * 2.6;
     alpha = alpha * shown * kept + edge * 0.9;
     gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0) * uOpacity);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
   }
 `
 
@@ -203,8 +212,12 @@ const sparkFragment = /* glsl */ `
     // estrelinha de quatro pontas
     float star = max(0.0, 1.0 - abs(c.x * c.y) * 180.0) * smoothstep(0.5, 0.0, d);
     float core = smoothstep(0.2, 0.0, d);
-    float a = (star * 0.8 + core) * vAlpha;
-    gl_FragColor = vec4(vColor * 1.5, a);
+    // halo suave: faz o papel do bloom sem passada extra de pós-processamento
+    float halo = exp(-d * 10.0) * 0.55;
+    float a = (star * 0.8 + core + halo) * vAlpha;
+    gl_FragColor = vec4(vColor * 1.6, a);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
   }
 `
 

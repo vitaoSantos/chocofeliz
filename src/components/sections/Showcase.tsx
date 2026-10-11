@@ -1,78 +1,138 @@
 import { useLenis } from 'lenis/react'
-import { AnimatePresence, motion, useMotionTemplate, useMotionValue, useSpring } from 'motion/react'
-import { useCallback, useEffect, useState, type PointerEvent } from 'react'
-import { TbArrowLeft, TbArrowRight, TbMaximize, TbX } from 'react-icons/tb'
+import { AnimatePresence, motion } from 'motion/react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { TbArrowLeft, TbArrowRight, TbPlus, TbX } from 'react-icons/tb'
 import { useOrder } from '../../context/OrderContext'
-import { gallery, type GalleryItem } from '../../data/gallery'
-import { themes } from '../../data/themes'
-import { useFinePointer } from '../../hooks/useMediaQuery'
+import { useSiteData } from '../../context/SiteDataContext'
+import { brand } from '../../data/brand'
+import { gallery } from '../../data/gallery'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
+import { photoUrl } from '../../lib/api'
+import { eventDateLabel, type MuralPhoto } from '../../lib/siteTypes'
 import { useScrollTo } from '../layout/Navbar'
 import { LabelDisc } from '../ui/LabelDisc'
 import { easeOut } from '../ui/motion'
 import { Reveal } from '../ui/Reveal'
 import { SectionLabel } from '../ui/SectionLabel'
 
-function PhotoCard({ item, index, onOpen }: { item: GalleryItem; index: number; onOpen: () => void }) {
-  const fine = useFinePointer()
-  const rx = useSpring(useMotionValue(0), { stiffness: 160, damping: 18 })
-  const ry = useSpring(useMotionValue(0), { stiffness: 160, damping: 18 })
-  const gx = useMotionValue(50)
-  const gy = useMotionValue(50)
-  const glare = useMotionTemplate`radial-gradient(500px circle at ${gx}% ${gy}%, rgb(255 240 220 / 0.16), transparent 45%)`
+// Uma foto do mural: enviada pelo painel (/admin) ou que veio junto com o site
+type MuralItem = {
+  key: string
+  thumb: string
+  full: string
+  width: number
+  height: number
+  title: string
+  note: string
+  alt: string
+}
 
-  function onMove(e: PointerEvent<HTMLButtonElement>) {
-    if (!fine) return
-    const r = e.currentTarget.getBoundingClientRect()
-    const px = (e.clientX - r.left) / r.width
-    const py = (e.clientY - r.top) / r.height
-    ry.set((px - 0.5) * 10)
-    rx.set(-(py - 0.5) * 10)
-    gx.set(px * 100)
-    gy.set(py * 100)
+function fromPanel(photo: MuralPhoto): MuralItem {
+  // o que tiver primeiro (título, tema, data) vira a legenda escrita à mão; o resto vai embaixo
+  const parts = [photo.title, photo.theme, eventDateLabel(photo.date)].filter(Boolean)
+  return {
+    key: photo.id,
+    thumb: photoUrl(photo.id, 'thumb'),
+    full: photoUrl(photo.id, 'full'),
+    width: photo.width,
+    height: photo.height,
+    title: parts[0] ?? 'Mais uma festa feliz',
+    note: parts.slice(1).join(' · '),
+    alt: [`Pirulitos de chocolate da ${brand.name}`, photo.theme && `tema ${photo.theme}`, photo.title].filter(Boolean).join(', '),
   }
+}
 
+const bundled: MuralItem[] = gallery.map((g) => ({
+  key: g.src,
+  thumb: g.src,
+  full: g.src,
+  width: g.width,
+  height: g.height,
+  title: g.occasion,
+  note: `${g.theme} · ${g.ribbon}`,
+  alt: g.alt,
+}))
+
+const PAGE = 9
+// inclinação de cada foto no mural, em graus (repete a cada seis)
+const TILTS = [-2.2, 1.6, -1.2, 2.3, -1.7, 1.1]
+
+// Distribui as fotos nas colunas sempre pela coluna mais curta: as mais recentes ficam em cima
+function toColumns(items: MuralItem[], count: number) {
+  const columns = Array.from({ length: count }, () => ({ height: 0, items: [] as { item: MuralItem; index: number }[] }))
+  items.forEach((item, index) => {
+    const target = columns.reduce((low, c) => (c.height < low.height - 0.01 ? c : low))
+    target.items.push({ item, index })
+    target.height += item.height / item.width + 0.3 // foto + moldura e legenda
+  })
+  return columns
+}
+
+function Polaroid({ item, index, onOpen }: { item: MuralItem; index: number; onOpen: () => void }) {
   return (
-    <Reveal delay={index * 0.1} className="[perspective:1400px]">
-      <motion.button
+    <motion.li
+      initial={{ opacity: 0, transform: 'translateY(40px)' }}
+      whileInView={{ opacity: 1, transform: 'translateY(0px)', transitionEnd: { transform: 'none' } }}
+      viewport={{ once: true, margin: '-60px' }}
+      transition={{ duration: 0.8, ease: easeOut, delay: (index % 3) * 0.08 }}
+    >
+      <button
         type="button"
         onClick={onOpen}
-        onPointerMove={onMove}
-        onPointerLeave={() => {
-          rx.set(0)
-          ry.set(0)
-        }}
-        style={{ rotateX: rx, rotateY: ry }}
-        className="group relative block w-full overflow-hidden rounded-[2rem] border border-line bg-cocoa-2 text-left [transform-style:preserve-3d]"
-        aria-label={`Ampliar foto: ${item.theme}`}
+        aria-label={`Ver de perto: ${item.title}`}
+        style={{ '--tilt': `${TILTS[index % TILTS.length]}deg` } as CSSProperties}
+        className="group relative block w-full rotate-(--tilt) rounded-md bg-[#f6ead9] p-2 pb-3 text-left shadow-[0_24px_40px_-20px_rgb(0_0_0/0.85),0_2px_6px_rgb(0_0_0/0.35)] transition-[rotate,translate] duration-500 ease-out hover:-translate-y-1.5 hover:rotate-0 focus-visible:rotate-0 sm:p-3.5 sm:pb-5"
       >
-        <div className="aspect-square overflow-hidden">
-          <img
-            src={item.src}
-            alt={item.alt}
-            loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-[1.2s] ease-out group-hover:scale-105"
-          />
-        </div>
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgb(20_11_7/0.92),transparent_45%)]" />
-        {fine && <motion.div aria-hidden className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: glare }} />}
-        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6 sm:p-8">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-caramel">{item.occasion}</p>
-            <p className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{item.theme}</p>
-            <p className="mt-1 text-sm text-muted">{item.ribbon}</p>
-          </div>
-          <span className="grid size-12 shrink-0 place-items-center rounded-full border border-line-strong bg-cocoa/60 text-xl text-cream transition-colors group-hover:border-caramel group-hover:text-caramel">
-            <TbMaximize aria-hidden />
+        <span aria-hidden className="absolute -top-2.5 left-1/2 h-5 w-14 -translate-x-1/2 -rotate-3 rounded-[2px] bg-caramel-soft/60 shadow-sm sm:-top-3 sm:h-6 sm:w-20" />
+        <span className="block overflow-hidden rounded-[3px] bg-cocoa-3" style={{ aspectRatio: `${item.width} / ${item.height}` }}>
+          <Thumb item={item} />
+        </span>
+        <span className="mt-2 block px-0.5 font-hand text-xl leading-none text-[#3a1e12] sm:mt-3 sm:px-1 sm:text-[1.7rem]">{item.title}</span>
+        {item.note && (
+          <span className="mt-1.5 block px-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-[#9a6a48] sm:mt-2 sm:px-1 sm:text-[11px] sm:tracking-[0.14em]">
+            {item.note}
           </span>
-        </div>
-      </motion.button>
-    </Reveal>
+        )}
+      </button>
+    </motion.li>
   )
 }
 
-function Lightbox({ index, onClose, onStep }: { index: number; onClose: () => void; onStep: (dir: 1 | -1) => void }) {
+// Miniatura do mural. Se a foto falhar (rede instável), tenta mais uma vez; depois fica só o fundo, sem ícone quebrado.
+function Thumb({ item }: { item: MuralItem }) {
+  const [attempt, setAttempt] = useState(0)
+  const [failed, setFailed] = useState(false)
+  if (failed) return null
+  return (
+    <img
+      src={attempt ? `${item.thumb}${item.thumb.includes('?') ? '&' : '?'}de-novo=${attempt}` : item.thumb}
+      alt={item.alt}
+      width={item.width}
+      height={item.height}
+      loading="lazy"
+      decoding="async"
+      onError={() => (attempt ? setFailed(true) : window.setTimeout(() => setAttempt(1), 1500))}
+      className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+    />
+  )
+}
+
+function FullImage({ item }: { item: MuralItem }) {
+  const [loaded, setLoaded] = useState(false)
+  return (
+    <img
+      src={item.full}
+      alt={item.alt}
+      decoding="async"
+      onLoad={() => setLoaded(true)}
+      className={`h-full w-full object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+    />
+  )
+}
+
+function Lightbox({ items, index, onClose, onStep }: { items: MuralItem[]; index: number; onClose: () => void; onStep: (dir: 1 | -1) => void }) {
   const lenis = useLenis()
-  const item = gallery[index]
+  const item = items[index]
 
   useEffect(() => {
     lenis?.stop()
@@ -90,11 +150,19 @@ function Lightbox({ index, onClose, onStep }: { index: number; onClose: () => vo
     }
   }, [lenis, onClose, onStep])
 
+  // já baixa a anterior e a próxima, para a troca ser imediata
+  useEffect(() => {
+    for (const dir of [1, -1]) {
+      const next = items[(index + dir + items.length) % items.length]
+      if (next && next !== item) new Image().src = next.full
+    }
+  }, [items, index, item])
+
   return (
     <motion.div
       role="dialog"
       aria-modal="true"
-      aria-label={item.theme}
+      aria-label={item.title}
       className="fixed inset-0 z-[90] flex flex-col bg-cocoa/95 p-4 sm:p-8"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -102,35 +170,46 @@ function Lightbox({ index, onClose, onStep }: { index: number; onClose: () => vo
       onClick={onClose}
     >
       <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-muted">
-          <span className="font-display text-lg text-cream">{item.theme}</span> · {item.occasion}
+        <p className="min-w-0 text-sm text-muted">
+          <span className="font-hand text-2xl text-cream">{item.title}</span>
+          {item.note && <span className="block truncate sm:ml-3 sm:inline">{item.note}</span>}
         </p>
-        <button type="button" onClick={onClose} aria-label="Fechar" className="grid size-11 place-items-center rounded-full border border-line-strong text-xl">
+        <button type="button" onClick={onClose} aria-label="Fechar" className="grid size-11 shrink-0 place-items-center rounded-full border border-line-strong text-xl">
           <TbX aria-hidden />
         </button>
       </div>
-      <div className="relative flex min-h-0 flex-1 items-center justify-center py-4">
+      {/* a foto ocupa o maior espaço possível sem cortar; a miniatura já carregada aparece enquanto a grande chega */}
+      <div className="relative my-4 min-h-0 flex-1 [container-type:size]">
         <AnimatePresence mode="wait">
-          <motion.img
-            key={item.src}
-            src={item.src}
-            alt={item.alt}
-            onClick={(e) => e.stopPropagation()}
+          <motion.div
+            key={item.key}
+            className="absolute inset-0 grid place-items-center"
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ duration: 0.35, ease: easeOut }}
-            className="max-h-full max-w-full rounded-3xl object-contain shadow-2xl"
-          />
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="overflow-hidden rounded-3xl bg-cocoa-3 bg-cover bg-center shadow-2xl"
+              style={{
+                aspectRatio: `${item.width} / ${item.height}`,
+                width: `min(100cqw, 100cqh * ${(item.width / item.height).toFixed(4)})`,
+                backgroundImage: `url("${item.thumb}")`,
+              }}
+            >
+              <FullImage item={item} />
+            </div>
+          </motion.div>
         </AnimatePresence>
       </div>
-      {gallery.length > 1 && (
+      {items.length > 1 && (
         <div className="flex items-center justify-center gap-3" onClick={(e) => e.stopPropagation()}>
           <button type="button" onClick={() => onStep(-1)} aria-label="Foto anterior" className="grid size-12 place-items-center rounded-full border border-line-strong text-xl hover:border-caramel">
             <TbArrowLeft aria-hidden />
           </button>
-          <span className="w-16 text-center text-sm tabular-nums text-muted">
-            {index + 1} / {gallery.length}
+          <span className="w-20 text-center text-sm tabular-nums text-muted">
+            {index + 1} / {items.length}
           </span>
           <button type="button" onClick={() => onStep(1)} aria-label="Próxima foto" className="grid size-12 place-items-center rounded-full border border-line-strong text-xl hover:border-caramel">
             <TbArrowRight aria-hidden />
@@ -142,7 +221,7 @@ function Lightbox({ index, onClose, onStep }: { index: number; onClose: () => vo
 }
 
 function ThemeStrip() {
-  const { chooseTheme } = useOrder()
+  const { chooseTheme, themes } = useOrder()
   const scrollTo = useScrollTo()
 
   function choose(id: string) {
@@ -184,9 +263,19 @@ function ThemeStrip() {
 }
 
 export function Showcase() {
+  const { photos } = useSiteData()
+  const items = useMemo(() => [...photos.map(fromPanel), ...bundled], [photos])
+  const [shown, setShown] = useState(PAGE)
   const [open, setOpen] = useState<number | null>(null)
   const close = useCallback(() => setOpen(null), [])
-  const step = useCallback((dir: 1 | -1) => setOpen((i) => (i === null ? i : (i + dir + gallery.length) % gallery.length)), [])
+  const step = useCallback((dir: 1 | -1) => setOpen((i) => (i === null ? i : (i + dir + items.length) % items.length)), [items.length])
+
+  const lg = useMediaQuery('(min-width: 1024px)')
+  const visible = useMemo(() => items.slice(0, shown), [items, shown])
+  // duas colunas já no celular (fica com cara de mural e a rolagem não fica enorme), três no computador
+  const count = Math.max(1, Math.min(lg ? 3 : 2, visible.length))
+  const columns = useMemo(() => toColumns(visible, count), [visible, count])
+  const rest = items.length - visible.length
 
   return (
     <section id="mostruario" className="relative py-24 sm:py-32">
@@ -198,21 +287,41 @@ export function Showcase() {
               Cada festa ganha um pirulito <span className="wonk text-gradient">só dela.</span>
             </h2>
             <p className="max-w-sm text-muted">
-              Alguns trabalhos que já saíram da nossa cozinha, do jeitinho que chegaram na festa. Toque na foto para ver de perto.
+              O nosso mural de festas: pirulitos que já saíram da cozinha, do jeitinho que chegaram na mesa. Toque na foto para ver de perto.
             </p>
           </div>
         </Reveal>
 
-        <div className={`mt-14 grid gap-6 ${gallery.length > 1 ? 'md:grid-cols-2' : ''} ${gallery.length > 2 ? 'lg:grid-cols-3' : ''}`}>
-          {gallery.map((item, i) => (
-            <PhotoCard key={item.src} item={item} index={i} onOpen={() => setOpen(i)} />
+        {/* cada coluna é uma lista; a ordem de leitura segue a das fotos, das mais novas para as mais antigas */}
+        <div
+          className={`mx-auto mt-16 grid items-start gap-x-4 sm:gap-x-10 ${count === 1 ? 'max-w-md' : count === 2 && lg ? 'max-w-4xl' : ''}`}
+          style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}
+        >
+          {columns.map((column, c) => (
+            <ul key={c} className="grid gap-7 sm:gap-12">
+              {column.items.map(({ item, index }) => (
+                <Polaroid key={item.key} item={item} index={index} onOpen={() => setOpen(index)} />
+              ))}
+            </ul>
           ))}
         </div>
+
+        {rest > 0 && (
+          <div className="mt-14 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setShown((n) => n + PAGE)}
+              className="inline-flex items-center gap-2 rounded-full border border-line-strong px-7 py-3.5 font-medium text-cream transition-colors hover:border-caramel/60 hover:bg-caramel/10"
+            >
+              <TbPlus aria-hidden /> Ver mais festas <span className="text-muted">({rest})</span>
+            </button>
+          </div>
+        )}
       </div>
 
       <ThemeStrip />
 
-      <AnimatePresence>{open !== null && <Lightbox index={open} onClose={close} onStep={step} />}</AnimatePresence>
+      <AnimatePresence>{open !== null && items[open] && <Lightbox items={items} index={open} onClose={close} onStep={step} />}</AnimatePresence>
     </section>
   )
 }

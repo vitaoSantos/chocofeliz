@@ -5,7 +5,7 @@ export const brand = {
   tagline: 'Pirulitos de chocolate personalizados',
   // Só números, com DDI e DDD. Ex.: '5535999998888'.
   // Enquanto estiver vazio, os botões abrem o WhatsApp para a pessoa escolher o contato.
-  whatsapp: '',
+  whatsapp: '5535988648782',
   // Só o usuário, sem @. Ex.: 'chocofeliz'
   instagram: '',
   email: '',

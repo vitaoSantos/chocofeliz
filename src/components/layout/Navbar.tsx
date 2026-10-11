@@ -1,6 +1,6 @@
 import { useLenis } from 'lenis/react'
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'motion/react'
-import { useEffect, useState, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { TbBrandInstagram, TbBrandWhatsapp, TbMenu2, TbX } from 'react-icons/tb'
 import { brand, instagramUrl, whatsappUrl } from '../../data/brand'
 import { navLinks } from '../../data/nav'
@@ -14,7 +14,12 @@ export function useScrollTo() {
   return (id: string) => {
     const target = id === 'inicio' ? 0 : document.getElementById(id)
     if (target === null) return
-    if (lenis) lenis.scrollTo(target, { offset: id === 'inicio' ? 0 : -72, duration: 1.6 })
+    if (lenis) {
+      // trajetos curtos são rápidos; os longos (passando pela abertura inteira) não passam de 1,4 s
+      const top = target === 0 ? 0 : target.getBoundingClientRect().top + window.scrollY
+      const duration = Math.min(1.4, 0.6 + Math.abs(top - window.scrollY) / 5000)
+      lenis.scrollTo(target, { offset: id === 'inicio' ? 0 : -72, duration })
+    }
     else if (target === 0) window.scrollTo({ top: 0, behavior: 'smooth' })
     else target.scrollIntoView({ behavior: 'smooth' })
   }
@@ -28,16 +33,29 @@ export function Navbar() {
   const { scrollY } = useScroll()
   const scrollTo = useScrollTo()
 
+  // Posição de cada seção, medida só quando o tamanho da página muda (e não a cada quadro de scroll)
+  const offsets = useRef<{ id: string; top: number }[]>([])
+  useEffect(() => {
+    const measure = () => {
+      offsets.current = navLinks.map((link) => {
+        const el = document.getElementById(link.id)
+        return { id: link.id, top: el ? el.getBoundingClientRect().top + window.scrollY : Infinity }
+      })
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(document.body)
+    return () => observer.disconnect()
+  }, [])
+
   useMotionValueEvent(scrollY, 'change', (y) => {
     const previous = scrollY.getPrevious() ?? 0
     setScrolled(y > 24)
     setHidden(y > previous && y > 240)
     // seção ativa: a última cujo topo já passou de 40% da tela
+    const line = y + window.innerHeight * 0.4
     let current = navLinks[0].id
-    for (const link of navLinks) {
-      const el = document.getElementById(link.id)
-      if (el && el.getBoundingClientRect().top <= window.innerHeight * 0.4) current = link.id
-    }
+    for (const section of offsets.current) if (section.top <= line) current = section.id
     setActive(current)
   })
 
